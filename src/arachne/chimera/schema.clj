@@ -6,14 +6,10 @@
   "Schema for the Chiemra module"
   (concat
 
-    ;; Note that type references, in the model,  are modeled as keywords rather
-    ;; than refs. This is a pragmatic choice to make it easier to manipulate multiple
-    ;; overlapping models without accidentally entangling them.
-
     (m/type :chimera/Adapter [:arachne/Component]
       "An adapter component"
-      (m/attr :chimera.adapter/types :many :chimera/Type
-        "Entity types that are defined for this adapter (as a point-in-time model, based on the migrations that are present)")
+      (m/attr :chimera.adapter/model :many :component :chimera/DataModelElement
+        "Data model elements that are part of the concrete data model for this Adapter.")
       (m/attr :chimera.adapter/migrations :many :chimera/Migration
         "Migrations that are a part of this Adapter (as a cross-time model)")
       (m/attr :chimera.adapter/capabilities :component :one-or-more :arachne.adapter/Capability
@@ -31,14 +27,17 @@
         multiple times yield the same result as applying it once?"))
 
     ;; Static Entity Model
-    (m/type :chimera/Type []
+    (m/type :chimera/DataModelElement []
+      "The abstract type for data model entities (types and attributes)")
+
+    (m/type :chimera/Type [:chimera/DataModelElement]
       "An entity type"
       (m/attr :chimera.type/name :one :keyword
         "The unique name of the type.")
       (m/attr :chimera.type/supertypes :many :keyword
         "The names of the supertypes of this type"))
 
-    (m/type :chimera/Attribute []
+    (m/type :chimera/Attribute [:chimera/DataModelElement]
       "An attribute."
       (m/attr :chimera.attribute/name :one :keyword
         "The unique name of the attribute.")
@@ -77,7 +76,7 @@
       "An individual operation that is a part of a migration."
       (m/attr :chimera.migration.operation/next :one-or-none :component :chimera.migration/Operation
         "The next operation in this sequence")
-      (m/attr :chimera.migration.operation/operation-type :one :keyword
+      (m/attr :chimera.migration.operation/type :one :keyword
         "The type of the operation"))
 
     (m/type :chimera.migration.operation/AddAttribute []

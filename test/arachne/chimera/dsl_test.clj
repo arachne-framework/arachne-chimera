@@ -35,7 +35,5 @@
                         '[:find ?op
                           :where
                           [?op :chimera.migration.operation/operation-type
-                           :chimera/extend-type]]))))
-
-    (is (= 1 1))))
+                           :chimera/extend-type]]))))))
 

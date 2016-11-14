@@ -1,22 +1,17 @@
 (ns arachne.chimera.dsl
   (:refer-clojure :exclude [extend-type])
   (:require [clojure.spec :as s]
+            [arachne.chimera.specs :as cs]
             [arachne.error :as e :refer [deferror error]]
             [arachne.core.config :as cfg]
             [arachne.core.config.init :as script :refer [defdsl]]))
 
-(s/def ::migration-name (s/and keyword? namespace))
-(s/def ::type-name (s/and keyword? namespace))
-(s/def ::attribute-name (s/and keyword? namespace))
-
-(s/def ::operation-txmap map?)
 
 (s/fdef migration
-  :args (s/cat :name ::migration-name
+  :args (s/cat :name :chimera.migration/name
                :docstr string?
-               :parents (s/coll-of ::migration-name)
-               :ops (s/+ ::operation-txmap)))
-
+               :parents (s/coll-of :chimera.migration/name)
+               :ops (s/+ ::cs/operation-txmap)))
 
 (defdsl migration
   "Define a migration entity"
@@ -40,16 +35,15 @@
                   :chimera.migration/operation (first op-eids)})]
     (script/transact txdata)))
 
-
 (s/fdef extend-type
-  :args (s/cat :supertype ::type-name
-               :subtype ::type-name))
+  :args (s/cat :supertype :chimera.type/name
+               :subtype :chimera.type/name))
 
 (defdsl extend-type
   "Create an extend-type operation for a migration"
   [supertype subtype]
   {:db/id (cfg/tempid)
-   :chimera.migration.operation/operation-type :chimera/extend-type
+   :chimera.migration.operation/type :chimera.operation/extend-type
    :chimera.migration.operation.extend-type/supertype supertype
    :chimera.migration.operation.extend-type/subtype subtype})
 
@@ -76,16 +70,16 @@
     :min (s/cat :kw #{:min} :val number?)
     :max (s/cat :kw #{:max} :val number?)
     :prim ::primitive-type
-    :ref (s/cat :kw #{:ref} :val ::type-name)
-    :component (s/cat :kw #{:ref} :val ::type-name)
+    :ref (s/cat :kw #{:ref} :val :chimera.type/name)
+    :component (s/cat :kw #{:ref} :val :chimera.type/name)
     :index #{:index}
     :key #{:key}))
 
 (s/def ::attr-dsl-features (s/+ ::attr-dsl-feature))
 
 (s/fdef attr
-  :args (s/cat :name ::attribute-name
-               :type ::type-name
+  :args (s/cat :name :chimera.attribute/name
+               :type :chimera.type/name
                :features ::attr-dsl-features))
 
 (defn- update-feature
@@ -112,5 +106,5 @@
         attr-txdata (update attr-txdata :chimera.attribute/min-cardinality
                       #(if (nil? %) 0 %))]
     {:db/id (cfg/tempid)
-     :chimera.migration.operation/operation-type :chimera/add-attribute
+     :chimera.migration.operation/type :chimera.operation/add-attribute
      :chimera.migration.operation.add-attribute/attr attr-txdata}))
