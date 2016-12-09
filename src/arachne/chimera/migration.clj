@@ -127,7 +127,7 @@
                :migrations (s/coll-of int?))
   :ret ::data-model)
 
-(defn- rollup
+(defn rollup
   "Given a config and a set of migration eids, returns a domain model data structure.
 
   This effectively transforms from a cross-time view of entity types
@@ -138,26 +138,6 @@
         model {:types {}, :attrs {}}]
     (reduce #(apply-migration cfg %1 %2) model migs)))
 
-(defn- add-db-id
-  "Adds a tempid to the entity map if not already present"
-  [em]
-  (if (:db/id em) em (assoc em :db/id (cfg/tempid))))
-
-(defn build-data-model
-  "Given a config and the eid of an adapter, build a data model for the adapter
-  from its migrations, returning an updated config."
-  [cfg adapter-eid]
-  (let [migs (map :db/id
-               (cfg/attr cfg adapter-eid :chimera.adapter/migrations))
-        model (rollup cfg migs)
-        model-elements (concat (vals (:types model))
-                               (vals (:attrs model)))
-        model-elements (map add-db-id model-elements)
-        model-elements (map util/mkeep model-elements)
-        eids (map :db/id model-elements)
-        txdata (conj model-elements {:db/id adapter-eid
-                                     :chimera.adapter/model eids})]
-    (cfg/update cfg txdata)))
 
 (defn add-root-migration
   "Add the root migration entity to the config"
@@ -200,6 +180,8 @@
                        [:test/m1]
 
                        (c/attr :test/attr2 :test/Type :string :min 1))
+
+
 
                      (a/transact
                        [{:arachne/id :test/adapter

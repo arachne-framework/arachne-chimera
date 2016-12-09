@@ -3,11 +3,13 @@
 
 
 (def schema
-  "Schema for the Chiemra module"
+  "Schema for the Chimera module"
   (concat
 
     (m/type :chimera/Adapter [:arachne/Component]
       "An adapter component"
+      (m/attr :chimera.adapter/type :one :keyword
+        "Identifier for the type of the adapter. Adapters of the same type should have the same constructor.")
       (m/attr :chimera.adapter/model :many :component :chimera/DataModelElement
         "Data model elements that are part of the concrete data model for this Adapter.")
       (m/attr :chimera.adapter/migrations :many :chimera/Migration
@@ -19,9 +21,12 @@
       "Details about the level of support an adapter gives for a particular operation"
       (m/attr :chimera.adapter.capability/operation :one :keyword
         "The operation that this capability describes.")
-      (m/attr :chimera.adapter.capability/transactional :one :boolean
-        "Is the operation transactional? That is, is it guaranteed to succeed or
+      (m/attr :chimera.adapter.capability/atomic :one :boolean
+        "Is the operation itself atomic? That is, is it guaranteed to succeed or
         fail as a unit, and leave the database untouched if it fails?")
+      (m/attr :chimera.adapter.capability/transactional :one :boolean
+        "Is the operation transactional with respect to other operations (in the
+        same batch?)")
       (m/attr :chimera.adapter.capability/idempotent :one :boolean
         "Is the operation idempotent? That is, does applying it to the database
         multiple times yield the same result as applying it once?"))

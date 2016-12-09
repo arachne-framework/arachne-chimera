@@ -29,11 +29,11 @@
     (is (= 2 (count (cfg/q cfg
                       '[:find ?op
                         :where
-                        [?op :chimera.migration.operation/operation-type
-                         :chimera/add-attribute]]))))
+                        [?op :chimera.migration.operation/type
+                         :chimera.operation/add-attribute]]))))
     (is (= 1 (count (cfg/q cfg
                         '[:find ?op
                           :where
-                          [?op :chimera.migration.operation/operation-type
-                           :chimera/extend-type]]))))))
+                          [?op :chimera.migration.operation/type
+                           :chimera.operation/extend-type]]))))))
 

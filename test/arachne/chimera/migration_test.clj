@@ -36,9 +36,11 @@
 
                    (a/transact
                      [{:arachne/id :test/adapter
+                       :chimera.adapter/type :test/adapter-type
                        :arachne.component/constructor :clojure.core/hash-map
-                       :chimera.adapter/capabilities [{:chimera.adapter.capability/operation :chimera.operation/read
+                       :chimera.adapter/capabilities [{:chimera.adapter.capability/operation :chimera.operation/get
                                                        :chimera.adapter.capability/idempotent true
+                                                       :chimera.adapter.capability/atomic true
                                                        :chimera.adapter.capability/transactional true}]
                        :chimera.adapter/migrations [{:chimera.migration/name :test/m2}
                                                     {:chimera.migration/name :test/m3}]}])
@@ -60,58 +62,3 @@
                      [?attr-x :chimera.attribute/name :test/d]])))
 
     )
-
-
-(comment
-
-  (def cfg  (core/build-config '[:org.arachne-framework/arachne-chimera]
-                '(do (require '[arachne.core.dsl :as a])
-                     (require '[arachne.chimera.dsl :as c])
-
-                     (a/runtime :test/rt [(a/component :test/a {} 'clojure.core/hash-map)])
-
-                     (c/migration :test/m1
-                       "test migration"
-                       []
-
-                       (c/attr :test/attr-a :test/Type :string :min 1)
-                       (c/attr :test/attr-b :test/Subtype :ref :test/Type :min 1 :max 1)
-
-                       (c/extend-type :test/Type :test/Subtype))
-
-                     (c/migration :test/t1
-                       "test migration 2"
-                       []
-
-                       (c/attr :test/attrx :test/Type :string :min 1)
-
-                       (c/extend-type :test/Type :test/Subtype))
-
-                     (c/migration :test/m2
-                       "test migration"
-                       [:test/m1]
-
-                       (c/attr :test/attr2 :test/Type :string :min 1))
-
-                     (a/transact
-                       [{:arachne/id :test/adapter
-                         :arachne.component/constructor :clojure.core/hash-map
-                         :chimera.adapter/capabilities [{:chimera.adapter.capability/operation :chimera.operation/read
-                                                         :chimera.adapter.capability/idempotent true
-                                                         :chimera.adapter.capability/transactional true}]
-                         :chimera.adapter/migrations [{:chimera.migration/name :test/m2}
-                                                      {:chimera.migration/name :test/t1}]}])
-                     )))
-
-  (cfg/q cfg '[:find ?attr-a .
-               :where
-               [?attr-a :chimera.attribute/name :test/attr-a]
-
-
-               ])
-
-  (cfg/pull cfg '[*] 17592186045446)
-
-
-
-  )

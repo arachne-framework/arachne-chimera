@@ -37,3 +37,32 @@
 (s/def :chimera.attribute/key boolean)
 (s/def :chimera.attribute/indexed boolean)
 
+(s/def :chimera/operation-type (s/and keyword? namespace))
+(s/def :chimera/operation-data any?)
+
+(s/def :chimera.primitive/boolean boolean?)
+(s/def :chimera.primitive/string string?)
+(s/def :chimera.primitive/keyword keyword?)
+(s/def :chimera.primitive/long integer?)
+(s/def :chimera.primitive/double float?)
+(s/def :chimera.primitive/bigdec decimal?)
+(s/def :chimera.primitive/bigint #(or (instance? BigInteger %)
+                                      (instance? clojure.lang.BigInt %)))
+(s/def :chimera.primitive/instant #(instance? java.util.Date %))
+(s/def :chimera.primitive/uuid uuid?)
+(s/def :chimera.primitive/bytes bytes?)
+
+(s/def :chimera/primitive (s/or
+                            :boolean :chimera.primitive/boolean
+                            :string  :chimera.primitive/string
+                            :keyword :chimera.primitive/keyword
+                            :long    :chimera.primitive/long
+                            :double  :chimera.primitive/double
+                            :bigdec  :chimera.primitive/bigdec
+                            :bigint  :chimera.primitive/bigint
+                            :instant :chimera.primitive/instant
+                            :uuid    :chimera.primitive/uuid
+                            :bytes   :chimera.primitive/bytes))
+
+(s/def :chimera.operation/get (s/cat :attribute :chimera.attribute/name
+                                     :value :chimera/primitive))
