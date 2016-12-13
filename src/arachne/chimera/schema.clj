@@ -38,9 +38,7 @@
     (m/type :chimera/Type [:chimera/DataModelElement]
       "An entity type"
       (m/attr :chimera.type/name :one :keyword
-        "The unique name of the type.")
-      (m/attr :chimera.type/supertypes :many :keyword
-        "The names of the supertypes of this type"))
+        "The unique name of the type."))
 
     (m/type :chimera/Attribute [:chimera/DataModelElement]
       "An attribute."
@@ -87,11 +85,4 @@
     (m/type :chimera.migration.operation/AddAttribute []
       "Encoding of the data required for an AddAttribute operation"
       (m/attr :chimera.migration.operation.add-attribute/attr :one :component :chimera/Attribute
-        "Attribute entity to be added to the model"))
-
-    (m/type :chimera.migration.operation/ExtendType []
-      "Encoding of the data required for an ExtendType operation"
-      (m/attr :chimera.migration.operation.extend-type/supertype :one :keyword
-        "The supertype of the type being extended")
-      (m/attr :chimera.migration.operation.extend-type/subtype :one :keyword
-        "The subtype that is being extended"))))
+        "Attribute entity to be added to the model"))))

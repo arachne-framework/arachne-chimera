@@ -7,8 +7,7 @@
 
 
 ;; Structure of type entity map txdata, for the config (eventually can be generated from model...)
-(s/def ::type-txmap (s/keys :req [:chimera.type/name]
-                            :opt [:chimera.type/supertypes]))
+(s/def ::type-txmap (s/keys :req [:chimera.type/name]))
 
 
 ;; Structure of attribute entity map txdata, for the config (eventually can be generated from model...)
@@ -27,7 +26,6 @@
 (s/def :chimera.migration.operation/next ::operation-txmap)
 
 (s/def :chimera.type/name (s/and keyword? namespace))
-(s/def :chimera.type/supertypes (s/coll-of :chimera.type/name))
 
 (s/def :chimera.attribute/name (s/and keyword? namespace))
 (s/def :chimera.attribute/domain :chimera.type/name)

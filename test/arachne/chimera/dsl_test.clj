@@ -17,10 +17,8 @@
                      "test migration"
                      []
 
-                     (c/attr :test/attr :test/Type :string :min 1)
-                     (c/attr :test/attr :test/Subtype :ref :test/Type :min 1 :max 1)
-
-                     (c/extend-type :test/Type :test/Subtype)))
+                     (c/attr :test/attr :test/TypeA :string :min 1)
+                     (c/attr :test/attr :test/TypeB :ref :test/TypeA :min 1 :max 1)))
               false)]
 
     (is (= 2 (count (cfg/q cfg '[:find ?m
@@ -30,10 +28,5 @@
                       '[:find ?op
                         :where
                         [?op :chimera.migration.operation/type
-                         :chimera.operation/add-attribute]]))))
-    (is (= 1 (count (cfg/q cfg
-                        '[:find ?op
-                          :where
-                          [?op :chimera.migration.operation/type
-                           :chimera.operation/extend-type]]))))))
+                         :chimera.operation/add-attribute]]))))))
 

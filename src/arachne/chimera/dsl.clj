@@ -1,5 +1,4 @@
 (ns arachne.chimera.dsl
-  (:refer-clojure :exclude [extend-type])
   (:require [clojure.spec :as s]
             [arachne.chimera.specs :as cs]
             [arachne.error :as e :refer [deferror error]]
@@ -35,18 +34,6 @@
                   :chimera.migration/parents parent-txdata
                   :chimera.migration/operation (first op-eids)})]
     (script/transact txdata)))
-
-(s/fdef extend-type
-  :args (s/cat :supertype :chimera.type/name
-               :subtype :chimera.type/name))
-
-(defdsl extend-type
-  "Create an extend-type operation for a migration"
-  [supertype subtype]
-  {:db/id (cfg/tempid)
-   :chimera.migration.operation/type :chimera.operation/extend-type
-   :chimera.migration.operation.extend-type/supertype supertype
-   :chimera.migration.operation.extend-type/subtype subtype})
 
 (defmulti primitive-type
   "Open predicate for primitive type mappings."

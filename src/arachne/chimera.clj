@@ -6,8 +6,7 @@
             [arachne.chimera.specs]
             [arachne.chimera.schema :as schema]
             [arachne.chimera.migration :as migrations]
-            [arachne.chimera.adapter :as adapter]
-            [arachne.chimera.adapter.config :as cfg-adapter]))
+            [arachne.chimera.adapter :as adapter]))
 
 (defn schema
   "Return the schema for the arachne.chimera module"
@@ -19,8 +18,7 @@
   [cfg]
   (-> cfg
     (migrations/add-root-migration)
-    (adapter/ensure-migration-models)
-    (cfg-adapter/populate-config-adapters)))
+    (migrations/ensure-migration-models)))
 
 (deferror ::missing-op-spec
   :message "No spec found for operation type `:op-type`"
