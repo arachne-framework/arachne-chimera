@@ -36,7 +36,7 @@
 (s/def :chimera.attribute/indexed boolean)
 
 (s/def :chimera/operation-type (s/and keyword? namespace))
-(s/def :chimera/operation-data any?)
+(s/def :chimera/operation-payload any?)
 
 (s/def :chimera.primitive/boolean boolean?)
 (s/def :chimera.primitive/string string?)

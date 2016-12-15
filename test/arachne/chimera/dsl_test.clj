@@ -6,7 +6,7 @@
             [arachne.core.config.model :as m]
             [com.stuartsierra.component :as component]))
 
-(deftest basic-dsl
+(defn basic-dsl []
   (let [cfg (core/build-config '[:org.arachne-framework/arachne-chimera]
               '(do (require '[arachne.core.dsl :as a])
                    (require '[arachne.chimera.dsl :as c])

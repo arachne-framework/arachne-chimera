@@ -8,14 +8,23 @@
 
     (m/type :chimera/Adapter [:arachne/Component]
       "An adapter component"
-      (m/attr :chimera.adapter/type :one :keyword
-        "Identifier for the type of the adapter. Adapters of the same type should have the same constructor.")
       (m/attr :chimera.adapter/model :many :component :chimera/DataModelElement
         "Data model elements that are part of the concrete data model for this Adapter.")
       (m/attr :chimera.adapter/migrations :many :chimera/Migration
         "Migrations that are a part of this Adapter (as a cross-time model)")
       (m/attr :chimera.adapter/capabilities :component :one-or-more :arachne.adapter/Capability
-        "Operations that this Adapter supports"))
+        "Data about the operations that this Adapter supports")
+      (m/attr :chimera.adapter/dispatches :component :one-or-more :arachne.adapter/Dispatch
+        "Data used to drive what code is actually evaluated for adapter operations"))
+
+    (m/type :chimera.adapter/Dispatch []
+      "Information used to dispatch operations to this adapter"
+      (m/attr :chimera.adapter.dispatch/index :one :long
+        "Index of this dispatch option, used to calculate priority relative to other dispatches.")
+      (m/attr :chimera.adapter.dispatch/pattern :one :string
+        "String representation of a core.match matching expression. It should match a tuple of the operation type and the operation payload.")
+      (m/attr :chimera.adapter.dispatch/impl :one :keyword
+        "Fully-qualified function name of the function that will be called for operations matching the pattern. Will be passed the adapter, the operation name and the operation payload."))
 
     (m/type :chimera.adapter/Capability []
       "Details about the level of support an adapter gives for a particular operation"

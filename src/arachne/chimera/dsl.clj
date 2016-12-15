@@ -97,15 +97,3 @@
      :chimera.migration.operation/type :chimera.operation/add-attribute
      :chimera.migration.operation.add-attribute/attr attr-txdata}))
 
-(s/fdef config-adapter
-  :args (s/cat :arachne-id ::core-specs/id))
-
-(defdsl config-adapter
-  "Define a config adapter component in the configuration."
-  [arachne-id]
-  (let [tempid (cfg/tempid)]
-    (cfg/resolve-tempid
-      (script/transact [{:db/id tempid
-                         :arachne/id arachne-id
-                         :chimera.adapter/type :arachne.chimera.adapter/config}])
-      tempid)))
