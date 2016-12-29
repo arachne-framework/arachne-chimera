@@ -88,7 +88,7 @@
         rt (rt/init cfg [:arachne/id :test/rt])
         rt (component/start rt)
         adapter (rt/lookup rt [:arachne/id :test/adapter])]
-    (is (thrown-with-msg? arachne.ArachneException #"Unknown dispatch"
+    (is (thrown-with-msg? ArachneException #"Unknown dispatch"
           (chimera/operate adapter :test.operation/foo [])))
 
     (is (= 42

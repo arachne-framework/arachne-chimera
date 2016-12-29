@@ -129,20 +129,28 @@
                 nodes)]
     (apply loom/digraph edges)))
 
+(defn migrations
+  "Return a sequence of all the dependent migration eids in an adapter, in
+  dependency order"
+  [cfg adapter-eid]
+  (->> (cfg/pull cfg '[:chimera.adapter/migrations] adapter-eid)
+    (map #(:db/id (:chimera.adapter/migrations %)))
+    (map #(migration-graph cfg %))
+    (apply loom/digraph)
+    (loom-alg/topsort)
+    (reverse)))
+
 (defn- adapter-model
   "Given a config and an adapter eid, update the config with a domain data model
   derived from the adapter's migrations.
 
   This effectively transforms from a cross-time view of entity types
   (migrations) to a point-in-time view (a domain model)"
-  [cfg [adapter-eid base-migrations]]
-  (let [graph (->> base-migrations
-                (map #(migration-graph cfg %))
-                (apply loom/digraph))
-        migrations (reverse (loom-alg/topsort graph))
+  [cfg adapter-eid]
+  (let [migs (migrations cfg adapter-eid)
         operations (mapcat (fn [mig]
                              (map (fn [op] [mig op]) (operations cfg mig)))
-                     migrations)]
+                     migs)]
     (reduce (fn [cfg [mig op]]
               (operation->model cfg adapter-eid mig op))
       cfg operations)))
@@ -151,10 +159,10 @@
   "For every adapter in the configuration with migrations, ensure that it has a
   point-in-time data model associated with it, based on its migrations."
   [cfg]
-  (let [adapters (cfg/q cfg '[:find ?a (distinct ?m)
+  (let [adapters (cfg/q cfg '[:find [?a ...]
                               :in $
                               :where
-                              [?a :chimera.adapter/migrations ?m]
+                              [?a :chimera.adapter/migrations _]
                               [(missing? $ ?a :chimera.adapter/model)]])]
     (reduce adapter-model cfg adapters)))
 
