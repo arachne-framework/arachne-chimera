@@ -10,73 +10,62 @@
             [arachne.chimera :as chimera]
             [arachne.chimera.dsl :as ch]
             [arachne.chimera.adapter :as a]
-            [com.stuartsierra.component :as component])
+            [com.stuartsierra.component :as component]
+            [arachne.chimera.test-adapter :as ta])
   (:import [arachne ArachneException]))
 
-(s/def :test.operation/foo any?)
-
-(defn adapter-test-migrations
-  []
-  "Intended to be called from within a config script. Will create migrations for
-  the basic example-based adapter tests."
-  (ch/migration :test/adapter-examples
+(defn test-config
+  "DSL function to buidl a test config"
+  [dob-min-card]
+  (ch/migration :test/m1
     "Migration to set up schema for example-based tests"
     []
     (ch/attr :test.person/id :test/Person :uuid :min 1 :max 1)
-    (ch/attr :test.person/name :test/Person :string :min 1 :max 1)))
+    (ch/attr :test.person/name :test/Person :string :min 1 :max 1))
+  (ch/migration :test/m2
+    "Migration to set up schema for example-based tests"
+    [:test/m1]
+    (ch/attr :test.person/dob :test/Person :instant :min dob-min-card :max 1)
+    (ch/attr :test.person/friends :test/Person :ref :test/Person :min 0))
 
-(defn test-adapter
-  "Define a test adapter instance in the config. Inteded to be called from
-  within a config script."
-  [arachne-id]
-  (adapter-test-migrations)
-  (let [capability (fn [op]
-                     {:chimera.adapter.capability/operation op
-                      :chimera.adapter.capability/idempotent true
-                      :chimera.adapter.capability/transactional true
-                      :chimera.adapter.capability/atomic true})]
-    (core-cfg/with-provenance :test `test-adapter
-      (c/transact
-        [{:arachne/id arachne-id
-          :chimera.adapter/migrations [{:chimera.migration/name
-                                        :test/adapter-examples}]
-          :chimera.adapter/capabilities (map capability
-                                          [:chimera.operation/migrate
-                                           :chimera.operation/add-attribute
-                                           :chimera.operation/get
-                                           :chimera.operation/put
-                                           :chimera.operation/update
-                                           :chimera.operation/delete
-                                           :chiemra.soperation/batch
-                                           :test.operation/foo])
-          :chimera.adapter/dispatches [{:chimera.adapter.dispatch/index 0,
-                                        :chimera.adapter.dispatch/pattern
-                                        "[:chimera.operation/get _]",
-                                        :chimera.adapter.dispatch/impl ::get-op}]}]))))
+  (ta/test-adapter :test/adapter :test/m2)
 
-(defn get-op
-  [adapter _ payload]
-  42)
-
-(defn adapter-example
-  "Run some example-based assertions on the specified adapter. The basic four
-  operations will be tested:
-
-  :chimera.operation/get
-  :chimera.operation/put
-  :chimera.operation/update
-  :chimera.operation/delete
-
-  As well as compositions of these using :chimera.operation/batch.
-
-  The adapter should support the :test/adapter-examples migration, which can be
-  added using the `adapter-test-migrations` function from this namespace"
-  [adapter]
-  (is (= 0 1))
+  (c/runtime :test/rt [:test/adapter])
 
   )
 
-(deftest basic-adapter
+(deftest adapter-migrations
+  (binding [ta/*data* (atom {})]
+
+    (testing "initial migration"
+      (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
+                  '(arachne.chimera.adapter-test/test-config 0))
+            rt (rt/init cfg [:arachne/id :test/rt])
+            rt (component/start rt)]
+        (chimera/ensure-migrations rt [:arachne/id :test/adapter]))
+
+      (is (= 3 (count (:migrations @ta/*data*)))))
+
+    (testing "idempotency"
+      (let [before @ta/*data*
+            cfg (core/build-config [:org.arachne-framework/arachne-chimera]
+                  '(arachne.chimera.adapter-test/test-config 0))
+            rt (rt/init cfg [:arachne/id :test/rt])
+            rt (component/start rt)]
+        (chimera/ensure-migrations rt [:arachne/id :test/adapter])
+        (is (= before @ta/*data*))))
+
+    (testing "checksums"
+      (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
+                  '(arachne.chimera.adapter-test/test-config 1))
+            rt (rt/init cfg [:arachne/id :test/rt])
+            rt (component/start rt)]
+        (is (thrown-with-msg? ArachneException #"checksum"
+              (chimera/ensure-migrations rt [:arachne/id :test/adapter])))))
+
+    ))
+
+#_(deftest basic-adapter
   (let [cfg (core/build-config '[:org.arachne-framework/arachne-chimera]
                '(do (require '[arachne.core.dsl :as a])
                     (require '[arachne.chimera.dsl :as c])

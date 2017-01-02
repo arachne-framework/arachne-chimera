@@ -9,7 +9,7 @@
             [arachne.chimera.schema :as schema]
             [arachne.chimera.migration :as migration]
             [arachne.chimera.adapter :as adapter]
-            [æsahættr :as aesh]))
+            [valuehash.api :as vh]))
 
 (defn schema
   "Return the schema for the arachne.chimera module"
@@ -66,47 +66,16 @@
   :ex-data-docs {:rt "The runtime"
                  :lookup "Lookup expression for the adapter"})
 
-(defn- hash-migration
-  "Return a 128bit hash of a migration entity map, as a hex string"
-  [m]
-  (let [data (w/prewalk (fn [form]
-                          (if (map? form)
-                            (dissoc form :db/id)
-                            form)) m)]
-    (.toString (aesh/hash-object (aesh/murmur3-128) data))))
-
 (defn ensure-migrations
   "Given a config and a lookup for an adapter, ensure that all the adapter's
    migrations have been applied."
   [rt adapter-lookup]
-  (let [adapter (rt/lookup rt adapter-lookup)]
+  (let [cfg (:config rt)
+        adapter (rt/lookup rt adapter-lookup)]
     (when-not (adapter? adapter) (error ::adapter-not-found
                                    {:rt rt, :lookup adapter-lookup}))
+    (operate adapter :chimera.operation/initialize-migrations true)
     (let [migration-eids (migration/migrations cfg (:db/id adapter))
-          migrations (map #(cfg/pull cfg '[*] %) migration-eids)
-
-          ]
-
-      )))
-
-
-(comment
-
-  (require ')
-
-  (.toString (aesh/hash-object (aesh/murmur3-128) [42]))
-
-  (.toString (aesh/hash-object (aesh/murmur3-128) (array-map :a 1 :b 2)))
-
-  (def a {:a 1 :b 2})
-  (def b {:b 2 :a 1})
-
-
-  (.toString (aesh/hash-object (aesh/murmur3-128) (array-map :b 2 :a 1)))
-
-
-
-
-
-
-  )
+          migrations (map #(migration/canonical-migration cfg %) migration-eids)]
+      (doseq [migration migrations]
+        (operate adapter :chimera.operation/migrate [(vh/md5-str migration) migration])))))

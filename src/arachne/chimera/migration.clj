@@ -9,7 +9,8 @@
             [arachne.chimera.specs :as cs]
             [loom.graph :as loom]
             [loom.alg :as loom-alg]
-            [arachne.core.util :as util]))
+            [arachne.core.util :as util]
+            [clojure.walk :as w]))
 
 (defmulti operation->model
   "Apply a migration operation to an adapter's domain data model.
@@ -134,11 +135,25 @@
   dependency order"
   [cfg adapter-eid]
   (->> (cfg/pull cfg '[:chimera.adapter/migrations] adapter-eid)
-    (map #(:db/id (:chimera.adapter/migrations %)))
+    :chimera.adapter/migrations
+    (map :db/id)
     (map #(migration-graph cfg %))
     (apply loom/digraph)
     (loom-alg/topsort)
     (reverse)))
+
+(defn canonical-migration
+  "Return the stable, offical view of a migration, as passed to the migrate operation
+  and as used to calculate the migration's signature."
+  [cfg migration-eid]
+  (let [m (cfg/pull cfg '[:chimera.migration/name
+                          :chimera.migration/operation
+                          {:chimera.migration/parents [:chimera.migration/name]}] migration-eid)]
+    (w/prewalk (fn [form]
+                 (if (map? form)
+                   (dissoc form :db/id)
+                   form))
+      m)))
 
 (defn- adapter-model
   "Given a config and an adapter eid, update the config with a domain data model
@@ -174,3 +189,33 @@
       [{:db/id (cfg/tempid)
         :chimera.migration/name :chimera/root-migration
         :chimera.migration/doc "Chimera's default root migration"}])))
+
+(deferror ::invalid-signature
+  :message "Invalid migration checksum for migration `:name` in adapter `:adapter-eid` (Arachne ID: `:adapter-aid`)"
+  :explanation "To ensure the integrity of existing databases, Chimera generates a signature for
+                each migration in the configuration. Once a migration is applied to a database, it
+                cannot be modified and re-applied to the same database. The migration process
+                ensures that either a migration is entirely new (in which case it is applied), or
+                that its checksum exactly matches the existing migration (in which case it is
+                guaranteed that all its changes have already been applied, and it is a no-op).
+
+                In this case, the migration named `:name` appears to be different than it was the
+                first time it was applied to this database, at `:original-time-str`. The
+                original MD5 signature was `:original`, the new one was `:new`.
+
+                This signature is obtained by hashing the name and parents of a migration, and the
+                full entity maps for all of a migration's operations. Any change, however minor, to
+                any of the operations in a migration will cause its checksum to change."
+  :suggestions ["Revert the migration to its original form, so it will have the same signature as
+                 the version currently in the database. If you really do need to change something
+                 about your database's schema, use a new migration instead."
+                "If you don't care about the data in your existing database, delete it and start
+                 with a new database. Without a previous migration to compare to, the new form of
+                 the migration should apply cleanly."]
+  :ex-data-docs {:name "Name of the migration"
+                 :adapter-eid "Entity ID of the adapter."
+                 :adapter-aid "Arachne ID of the adapter"
+                 :original-time "Date of the original migration"
+                 :original-time-str "Date string of the original"
+                 :original "The original MD5 signature"
+                 :new "The new MD5 signature"})

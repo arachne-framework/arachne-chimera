@@ -62,5 +62,8 @@
                             :uuid    :chimera.primitive/uuid
                             :bytes   :chimera.primitive/bytes))
 
-(s/def :chimera.operation/get (s/cat :attribute :chimera.attribute/name
-                                     :value :chimera/primitive))
+(s/def :chimera.operation/initialize-migrations #{true})
+
+(s/def :chimera.operation/migrate
+  (s/cat :signature string?
+         :migration map?))
