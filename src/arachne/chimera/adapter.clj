@@ -23,7 +23,7 @@
 
 (deferror ::missing-dispatch
   :message "Unknown dispatch operation `:op` for adapter `:adapter-eid` (Arachne ID: `:adapter-aid`)"
-  :explanation "Operations to a Chimera Adapter are dispatched using core.match expressions, derived data stored in the Arachne config.
+  :explanation "Operations to a Chimera Adapter are dispatched using core.match expressions, derived from data stored in the Arachne config.
 
   The requested operation was `:op`.
 
@@ -195,23 +195,4 @@
   (extend-adapter :myapp/datomic
     [:chimera.operation/get [:myapp/Person :person/id _]] 'myapp/get-person
     [:chimera.operation/put [:myapp/Person _]] 'myapp/put-person)
-  )
-
-
-(comment
-
-  (require '[clojure.core.match :as m])
-
-
-  (def v [:a [:g 32]])
-  (def v [:a [:x 32]])
-  (def v [:a [:y 42]])
-
-  (m/match v
-    [:a [:x _]] "x case"
-    [:a [:x _]] "y case"
-    [:a _] "generic case"
-    )
-
-
   )

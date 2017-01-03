@@ -1,4 +1,5 @@
 (ns arachne.chimera.adapter-test
+  "These tests form the reference implementation for any Adapter."
   (:require [clojure.test :refer :all]
             [clojure.spec :as s]
             [arachne.core :as core]
@@ -12,7 +13,8 @@
             [arachne.chimera.adapter :as a]
             [com.stuartsierra.component :as component]
             [arachne.chimera.test-adapter :as ta])
-  (:import [arachne ArachneException]))
+  (:import [arachne ArachneException]
+           (java.util UUID Date)))
 
 (defn test-config
   "DSL function to buidl a test config"
@@ -65,23 +67,72 @@
 
     ))
 
-#_(deftest basic-adapter
-  (let [cfg (core/build-config '[:org.arachne-framework/arachne-chimera]
-               '(do (require '[arachne.core.dsl :as a])
-                    (require '[arachne.chimera.dsl :as c])
-                    (require '[arachne.chimera.adapter-test :as at])
+(deftest bad-operations
+  (binding [ta/*data* (atom {})]
+    (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
+                '(arachne.chimera.adapter-test/test-config 0))
+          rt (rt/init cfg [:arachne/id :test/rt])
+          rt (component/start rt)
+          adapter (rt/lookup rt [:arachne/id :test/adapter])]
+      (is (thrown-with-msg? ArachneException #"not supported"
+            (chimera/operate adapter :no.such/operation [])))
+      (is (thrown-with-msg? ArachneException #"Unknown dispatch"
+            (chimera/operate adapter :test.operation/foo [])))
+      (is (thrown-with-msg? ArachneException #"did not conform "
+            (chimera/operate adapter :chimera.operation/initialize-migrations false))))))
 
-                    (at/test-adapter :test/adapter)
 
-                    (a/runtime :test/rt [:test/adapter])))
-        rt (rt/init cfg [:arachne/id :test/rt])
-        rt (component/start rt)
-        adapter (rt/lookup rt [:arachne/id :test/adapter])]
-    (is (thrown-with-msg? ArachneException #"Unknown dispatch"
-          (chimera/operate adapter :test.operation/foo [])))
+(deftest simple-crud
+  (binding [ta/*data* (atom {})]
+    (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
+                '(arachne.chimera.adapter-test/test-config 0))
+          rt (rt/init cfg [:arachne/id :test/rt])
+          rt (component/start rt)
+          adapter (rt/lookup rt [:arachne/id :test/adapter])]
+      (let [james (UUID/randomUUID)
+            mary (UUID/randomUUID)]
 
-    (is (= 42
-          (chimera/operate adapter :chimera.operation/get [:test.person/id 42])))
+        (testing "basic put/get"
+          (chimera/operate adapter :chimera.operation/put
+            [:test/Person {:test.person/id james
+                           :test.person/name "James"}])
 
-    )
-  )
+          ;; Todo: finish implementing with tests for basic defined behavior of put/get/update/delete, including error cases.
+
+          #_(chimera/operate adapter :chimera.operation/put
+            [:test/Person {:test.person/id mary
+                           :test.person/name "Mary"}])
+          #_(is (= #{{:test.person/id james, :test.person/name "James"}}
+                (chimera/operate adapter :chimera.operation/get
+                  [:test/Person [:test.person/id james]])))
+          #_(is (= #{{:test.person/id mary, :test.person/name "Mary"}}
+                (chimera/operate adapter :chimera.operation/get
+                  [:test/Person [:test.person/id mary]])))
+          #_(is (= #{}
+                (chimera/operate adapter :chimera.operation/get
+                  [:test/Person [:test.person/id (UUID/randomUUID)]]))))
+
+        #_(testing "error on multiple puts"
+          (is (thrown-with-msg? ArachneException #"already"
+                (chimera/operate adapter :chimera.operation/put
+                  [:test/Person {:test.person/id james
+                                 :test.person/name "James"}]))))
+
+        )
+
+      )))
+
+(deftest batch
+  (binding [ta/*data* (atom {})]
+    (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
+                '(arachne.chimera.adapter-test/test-config 0))
+          rt (rt/init cfg [:arachne/id :test/rt])
+          rt (component/start rt)
+          adapter (rt/lookup rt [:arachne/id :test/adapter])]
+
+      ;; TODO: test batch operations, including tests for atomicity and transactionality.
+
+      )))
+
+;; TODO: refactor so these tests can be applied as a battery, to any adapter, not just the test adapter.
+;; TODO: Write Datomic, K/V & SQL adapters, and apply these tests

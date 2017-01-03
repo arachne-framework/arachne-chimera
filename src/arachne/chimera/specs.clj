@@ -62,8 +62,26 @@
                             :uuid    :chimera.primitive/uuid
                             :bytes   :chimera.primitive/bytes))
 
+
+(s/def :chimera/entity-map
+  (s/map-of :chimera.attribute/name (s/or :primitive :chimera/primitive
+                                          :key :chimera/lookup
+                                          :coll (s/coll-of (s/or :primitive :chimera/primtive
+                                                                 :key :chimera/lookup)))))
+
+
+;;; Operation Types
+
 (s/def :chimera.operation/initialize-migrations #{true})
 
 (s/def :chimera.operation/migrate
   (s/cat :signature string?
          :migration map?))
+
+(s/def :chimera.operation/put
+  (s/cat :type :chimera.type/name
+         :entity-map :chimera/entity-map))
+
+(s/def :chimera.operation/get
+  (s/cat :type :chimera.type/name
+    :lookup (s/tuple :chimera.attribute/name :chimera/primitive)))

@@ -9,7 +9,8 @@
             [arachne.chimera.schema :as schema]
             [arachne.chimera.migration :as migration]
             [arachne.chimera.adapter :as adapter]
-            [valuehash.api :as vh]))
+            [valuehash.api :as vh])
+  (:refer-clojure :exclude [key]))
 
 (defn schema
   "Return the schema for the arachne.chimera module"
@@ -59,8 +60,7 @@
 
 (deferror ::adapter-not-found
   :message "Could not find adapter `:lookup` in the specified runtime."
-  :explanation "Some code made an attempt to look up an adapter identified by
-  `:lookup` in an Arachne runtime. However, the runtime did not contain any such entity."
+  :explanation "Some code made an attempt to look up an adapter identified by `:lookup` in an Arachne runtime. However, the runtime did not contain any such entity."
   :suggestions ["Ensure that the adapter lookup is correct, with no typos"
                 "Ensure that the configuration actually contains the requested entity and that it is an adapter component."]
   :ex-data-docs {:rt "The runtime"
@@ -79,3 +79,14 @@
           migrations (map #(migration/canonical-migration cfg %) migration-eids)]
       (doseq [migration migrations]
         (operate adapter :chimera.operation/migrate [(vh/md5-str migration) migration])))))
+
+
+
+(defrecord Lookup [attribute value])
+
+(s/def :chimera/lookup #(instance? Lookup %))
+
+(defn lookup
+  "Construct a Chimera lookup key"
+  ([[attr value]] (->Lookup attr value))
+  ([attr value] (->Lookup attr value)))

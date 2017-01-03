@@ -64,7 +64,7 @@
         "The value type for this attribute. May be a primitive type or the keyword name of an entity type.")
 
       (m/attr :chimera.attribute/component :one-or-none :boolean
-        "If true, indicates that a ref value is a boolean.")
+        "If true, indicates that a ref value is a component.")
 
       (m/attr :chimera.attribute/key :one-or-none :boolean
         "Can the value of this attribute be used to uniquely identify entities?")
