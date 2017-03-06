@@ -6,11 +6,11 @@
             [arachne.core.runtime :as rt]
             [arachne.core.config :as cfg]
             [arachne.core.config.model :as m]
-            [arachne.core.dsl :as c]
+            [arachne.core.dsl :as a]
             [arachne.core.config :as core-cfg]
             [arachne.chimera :as chimera]
             [arachne.chimera.dsl :as ch]
-            [arachne.chimera.adapter :as a]
+            [arachne.chimera.adapter :as ca]
             [com.stuartsierra.component :as component]
             [arachne.chimera.test-adapter :as ta])
   (:import [arachne ArachneException]
@@ -19,6 +19,7 @@
 (defn test-config
   "DSL function to buidl a test config"
   [dob-min-card]
+
   (ch/migration :test/m1
     "Migration to set up schema for example-based tests"
     []
@@ -30,9 +31,9 @@
     (ch/attr :test.person/dob :test/Person :instant :min dob-min-card :max 1)
     (ch/attr :test.person/friends :test/Person :ref :test/Person :min 0))
 
-  (ta/test-adapter :test/adapter :test/m2)
+  (a/id :test/adapter (ta/test-adapter :test/m2))
 
-  (c/runtime :test/rt [:test/adapter])
+  (a/id :test/rt (a/runtime [:test/adapter]))
 
   )
 

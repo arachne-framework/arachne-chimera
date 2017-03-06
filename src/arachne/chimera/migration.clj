@@ -5,7 +5,7 @@
             [arachne.core :as core]
             [arachne.core.config.specs :as cfg-specs]
             [arachne.core.config :as cfg]
-            [arachne.core.config.init :as script :refer [defdsl]]
+            [arachne.core.config.script :as script :refer [defdsl]]
             [arachne.chimera.specs :as cs]
             [loom.graph :as loom]
             [loom.alg :as loom-alg]

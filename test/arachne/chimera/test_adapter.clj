@@ -1,6 +1,6 @@
 (ns arachne.chimera.test-adapter
   (:require [arachne.core.config :as cfg]
-            [arachne.core.dsl :as c]
+            [arachne.core.dsl :as a]
             [arachne.error :refer [deferror error format-date]]
             [clojure.spec :as s]
             [clojure.set :as set]
@@ -12,15 +12,16 @@
 
 (defn test-adapter
   "DSL to define a test adapter instance in the config."
-  [arachne-id migration]
+  [migration]
   (let [capability (fn [[op i]]
                      {:chimera.adapter.capability/operation op
                       :chimera.adapter.capability/idempotent i
                       :chimera.adapter.capability/transactional true
-                      :chimera.adapter.capability/atomic true})]
+                      :chimera.adapter.capability/atomic true})
+        tid (cfg/tempid)]
     (cfg/with-provenance :test `test-adapter
-      (c/transact
-        [{:arachne/id arachne-id
+      (a/transact
+        [{:db/id tid
           :chimera.adapter/migrations [{:chimera.migration/name migration}]
           :chimera.adapter/capabilities (map capability
                                           [[:chimera.operation/initialize-migrations true]
@@ -30,7 +31,7 @@
                                            [:chimera.operation/put false]
                                            [:chimera.operation/update true]
                                            [:chimera.operation/delete true]
-                                           [:chiemra.soperation/batch false]
+                                           [:chiemra.operation/batch false]
                                            [:test.operation/foo true]])
           :chimera.adapter/dispatches [{:chimera.adapter.dispatch/index 0,
                                         :chimera.adapter.dispatch/pattern
@@ -48,7 +49,8 @@
                                         :chimera.adapter.dispatch/pattern
                                         "[:chimera.operation/get _]",
                                         :chimera.adapter.dispatch/impl ::get-op}
-                                       ]}]))))
+                                       ]}]
+        tid))))
 
 (defn- model-keys
   "Return a set of primary keys in the adapter's model"
@@ -96,7 +98,7 @@
 (defn migrate-op
   [adapter _ [signature migration]]
   (let [name (:chimera.migration/name migration)]
-    (swap! *data* update-in [:migrationsWE name]
+    (swap! *data* update-in [:migrations name]
       (fn [[original-sig date]]
         (if original-sig
           (if (= original-sig signature)
@@ -106,7 +108,7 @@
                :adapter-eid (:db/id adapter)
                :adapter-aid (:arachne/id adapter)
                :original-time date
-               :original-time-str (format-date date)
+               :original-time-str (str date (format-date date))
                :original original-sig
                :new signature}))
           [signature (java.util.Date.)])))))

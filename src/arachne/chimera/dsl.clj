@@ -2,19 +2,15 @@
   (:require [clojure.spec :as s]
             [arachne.chimera.specs :as cs]
             [arachne.error :as e :refer [deferror error]]
-            [arachne.core.dsl.specs :as core-specs]
             [arachne.core.config :as cfg]
-            [arachne.core.config.init :as script :refer [defdsl]]))
-
-
-(s/fdef migration
-  :args (s/cat :name :chimera.migration/name
-               :docstr string?
-               :parents (s/coll-of :chimera.migration/name)
-               :ops (s/+ ::cs/operation-txmap)))
+            [arachne.core.config.script :as script :refer [defdsl]]))
 
 (defdsl migration
-  "Define a migration entity"
+  "Define a migration entity with the specified name, docstring, set of parents and operations."
+  (s/cat :name :chimera.migration/name
+         :docstr string?
+         :parents (s/coll-of :chimera.migration/name)
+         :ops (s/+ ::cs/operation-txmap))
   [name docstr parents & ops]
   (let [parents (if (empty? parents)
                     [:chimera/root-migration]
@@ -65,11 +61,6 @@
 
 (s/def ::attr-dsl-features (s/+ ::attr-dsl-feature))
 
-(s/fdef attr
-  :args (s/cat :name :chimera.attribute/name
-               :type :chimera.type/name
-               :features ::attr-dsl-features))
-
 (defn- update-feature
   "Update an attr txdata map with a conformed DSL feature"
   [attr-map [feature {val :val :as v}]]
@@ -86,6 +77,9 @@
 
 (defdsl attr
   "Create an add-attribute operation for a migration"
+  (s/cat :name :chimera.attribute/name
+    :type :chimera.type/name
+    :features ::attr-dsl-features)
   [name type & features]
   (let [features (s/conform ::attr-dsl-features features)
         attr-txdata {:chimera.attribute/name name
