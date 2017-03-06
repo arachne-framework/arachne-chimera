@@ -11,6 +11,7 @@
             [arachne.chimera :as chimera]
             [arachne.chimera.dsl :as ch]
             [arachne.chimera.adapter :as ca]
+            [arachne.chimera.operation :as op]
             [com.stuartsierra.component :as component]
             [arachne.chimera.test-adapter :as ta])
   (:import [arachne ArachneException]
@@ -23,7 +24,7 @@
   (ch/migration :test/m1
     "Migration to set up schema for example-based tests"
     []
-    (ch/attr :test.person/id :test/Person :uuid :min 1 :max 1)
+    (ch/attr :test.person/id :test/Person :key :uuid :min 1 :max 1)
     (ch/attr :test.person/name :test/Person :string :min 1 :max 1))
   (ch/migration :test/m2
     "Migration to set up schema for example-based tests"
@@ -94,34 +95,48 @@
             mary (UUID/randomUUID)]
 
         (testing "basic put/get"
-          (chimera/operate adapter :chimera.operation/put
-            [:test/Person {:test.person/id james
-                           :test.person/name "James"}])
-
-          ;; Todo: finish implementing with tests for basic defined behavior of put/get/update/delete, including error cases.
-
-          #_(chimera/operate adapter :chimera.operation/put
-            [:test/Person {:test.person/id mary
-                           :test.person/name "Mary"}])
-          #_(is (= #{{:test.person/id james, :test.person/name "James"}}
-                (chimera/operate adapter :chimera.operation/get
-                  [:test/Person [:test.person/id james]])))
-          #_(is (= #{{:test.person/id mary, :test.person/name "Mary"}}
-                (chimera/operate adapter :chimera.operation/get
-                  [:test/Person [:test.person/id mary]])))
-          #_(is (= #{}
-                (chimera/operate adapter :chimera.operation/get
-                  [:test/Person [:test.person/id (UUID/randomUUID)]]))))
-
-        #_(testing "error on multiple puts"
+          (chimera/put adapter {:test.person/id james
+                                :test.person/name "James"})
+          (chimera/put adapter {:test.person/id mary
+                                :test.person/name "Mary"})
+          (is (= {:test.person/id james, :test.person/name "James"}
+                (chimera/get adapter :test.person/id james)))
+          (is (= {:test.person/id mary, :test.person/name "Mary"}
+                 (chimera/get adapter :test.person/id mary)))
+          (is (nil? (chimera/get adapter :test.person/id (UUID/randomUUID))))
           (is (thrown-with-msg? ArachneException #"already"
-                (chimera/operate adapter :chimera.operation/put
-                  [:test/Person {:test.person/id james
-                                 :test.person/name "James"}]))))
+                                (chimera/put adapter {:test.person/id james
+                                                      :test.person/name "James"}))))
+
+        #_(testing "update"
+          (let [t1 (java.util.Date.)]
+
+            (chimera/update adapter :test/Person {:test.person/id james
+                                                  :test.person/dob t})
+
+            (is (= {:test.person/id james,
+                    :test.person/name "James"
+                    :test.person/dob t1}
+                   (chimera/get adapter :test/Person :test.person/id james)))
+
+            (is (thrown-with-msg? ArachneException #"not found"
+                                  (chimera/update adapter :test/Person {:test.person/id james
+                                                                        :test.person/name "James"})))
+
+
+            ))
+
 
         )
 
-      )))
+
+
+
+        )
+
+      ))
+
+;; Todo: finish implementing with tests for basic defined behavior of put/get/update/delete, including error cases.
 
 (deftest batch
   (binding [ta/*data* (atom {})]

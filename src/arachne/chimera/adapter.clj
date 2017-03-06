@@ -154,17 +154,17 @@
 (defn assert-operation-support
   "Validate that the given operation is supported by the specified adapter."
   [adapter operation-type]
-  (let [supported (supported-operations adapter)
-        supported-str  (->> supported
-                         (map #(str "  - `" % "`"))
-                         (str/join "\n"))]
+  (let [supported (supported-operations adapter)]
     (when-not (contains? supported operation-type)
-      (error ::unsupported-operation {:adapter adapter
-                                      :adapter-eid (:db/id adapter)
-                                      :adapter-aid (:arachne/id adapter)
-                                      :supported supported
-                                      :supported-str supported-str
-                                      :type operation-type}))))
+      (let [supported-str (->> supported
+                            (map #(str "  - `" % "`"))
+                            (str/join "\n"))]
+        (error ::unsupported-operation {:adapter adapter
+                                        :adapter-eid (:db/id adapter)
+                                        :adapter-aid (:arachne/id adapter)
+                                        :supported supported
+                                        :supported-str supported-str
+                                        :type operation-type})))))
 
 ;; THIS IS WHAT WE'RE BUILDING
 (comment

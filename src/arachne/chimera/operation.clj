@@ -13,4 +13,3 @@
   :ex-data-docs {:lookup "The lookup key"
                  :adapter-eid "Adapter entity ID"
                  :adapter-aid "Adapter Arachne ID"})
-

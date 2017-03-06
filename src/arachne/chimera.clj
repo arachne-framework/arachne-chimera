@@ -10,14 +10,14 @@
             [arachne.chimera.migration :as migration]
             [arachne.chimera.adapter :as adapter]
             [valuehash.api :as vh])
-  (:refer-clojure :exclude [key]))
+  (:refer-clojure :exclude [key get]))
 
-(defn schema
+(defn ^:no-doc schema
   "Return the schema for the arachne.chimera module"
   []
   schema/schema)
 
-(defn configure
+(defn ^:no-doc configure
   "Configure the arachne.chimera module"
   [cfg]
   (-> cfg
@@ -39,12 +39,20 @@
   :ex-data-docs {:op-type "The Chimera operation type"
                  :op-payload "The payload data that failed to conform to the spec"})
 
-(defn adapter? [obj] (satisfies? adapter/Adapter obj))
+(defn ^:no-doc adapter? [obj] (satisfies? adapter/Adapter obj))
+
+(deferror ::adapter-not-found
+  :message "Could not find adapter `:lookup` in the specified runtime."
+  :explanation "Some code made an attempt to look up an adapter identified by `:lookup` in an Arachne runtime. However, the runtime did not contain any such entity."
+  :suggestions ["Ensure that the adapter lookup is correct, with no typos"
+                "Ensure that the configuration actually contains the requested entity and that it is an adapter component."]
+  :ex-data-docs {:rt "The runtime"
+                 :lookup "Lookup expression for the adapter"})
 
 (s/fdef operate
-  :args (s/cat :adapter adapter?
-               :type :chimera/operation-type
-               :payload :chimera/operation-payload))
+        :args (s/cat :adapter adapter?
+                     :type :chimera/operation-type
+                     :payload :chimera/operation-payload))
 
 (defn operate
   "Apply a Chimera operation to an adapter, first validating the operation."
@@ -57,18 +65,9 @@
                                                 :op-payload payload})
     (adapter/operate- adapter type payload)))
 
-
-(deferror ::adapter-not-found
-  :message "Could not find adapter `:lookup` in the specified runtime."
-  :explanation "Some code made an attempt to look up an adapter identified by `:lookup` in an Arachne runtime. However, the runtime did not contain any such entity."
-  :suggestions ["Ensure that the adapter lookup is correct, with no typos"
-                "Ensure that the configuration actually contains the requested entity and that it is an adapter component."]
-  :ex-data-docs {:rt "The runtime"
-                 :lookup "Lookup expression for the adapter"})
-
 (defn ensure-migrations
   "Given a config and a lookup for an adapter, ensure that all the adapter's
-   migrations have been applied."
+   migrations have been applied, applying any that have not."
   [rt adapter-lookup]
   (let [cfg (:config rt)
         adapter (rt/lookup rt adapter-lookup)]
@@ -81,7 +80,6 @@
         (operate adapter :chimera.operation/migrate [(vh/md5-str migration) migration])))))
 
 
-
 (defrecord Lookup [attribute value])
 
 (s/def :chimera/lookup #(instance? Lookup %))
@@ -90,3 +88,35 @@
   "Construct a Chimera lookup key"
   ([[attr value]] (->Lookup attr value))
   ([attr value] (->Lookup attr value)))
+
+
+(s/fdef put
+  :args (s/cat :adapter adapter?
+               :entity-map :chimera/entity-map))
+
+(defn put
+  "Insert a new Chimera entity into a data source. The entity map must have at least one 'key'
+   attribute. The key attribute should not be present in the database already; `put` is not
+   intended for updates and will fail if the entity already exists. "
+  [adapter entity-map]
+  (operate adapter :chimera.operation/put entity-map))
+
+(s/fdef get
+ :args (s/cat :adapter adapter?
+              :lookup (s/alt :lookup-record :chimera/lookup
+                             :tuple (s/tuple :chimera.attribute/name :chimera/primitive)
+                             :attr-val (s/cat :attribute :chimera.attribute/name
+                                              :value :chimera/primitive))))
+
+(defn get
+  "Retrieve a Chimera entity map from a data source. Can look up entity based on a Lookup record,
+   a tuple of [key value] or separate key and value arguments.
+
+   The entity map will contain all of the entity's attributes. Values of ref attributes will be Lookups."
+  ([adapter identifier]
+   (println "id" identifier)
+   (if (instance? Lookup identifier)
+     (operate adapter :chimera.operation/get identifier)
+     (operate adapter :chimera.operation/get (lookup identifier))))
+  ([adapter key value]
+   (operate adapter :chimera.operation/get (lookup key value))))

@@ -78,10 +78,6 @@
   (s/cat :signature string?
          :migration map?))
 
-(s/def :chimera.operation/put
-  (s/cat :type :chimera.type/name
-         :entity-map :chimera/entity-map))
+(s/def :chimera.operation/put :chimera/entity-map)
 
-(s/def :chimera.operation/get
-  (s/cat :type :chimera.type/name
-    :lookup (s/tuple :chimera.attribute/name :chimera/primitive)))
+(s/def :chimera.operation/get :chimera/lookup)

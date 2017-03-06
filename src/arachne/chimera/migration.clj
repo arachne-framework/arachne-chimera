@@ -29,7 +29,7 @@
 
   However, in a migration named `:mig-name`, there was an operation with an operation type `:op-type`. Chimera does not know how to apply that type of operation to build a domain model."
   :suggestions ["Ensure that the type name `:op-type` is correct with no typos."
-                "If you are a module author and need to define a new operation type, extend the `arachne.chimera.migration/apply-schema-operation` multimethod with an implementation `:op-type`."]
+                "If you are a module author and need to define a new operation type, extend the `arachne.chimera.migration/operation->model` multimethod with an implementation `:op-type`."]
   :ex-data-docs {:op-type "The unknown operation type"
                  :operation "The entity map for the unknown operation"
                  :mig-name "The migration name"
@@ -182,7 +182,8 @@
     (reduce adapter-model cfg adapters)))
 
 (defn add-root-migration
-  "Add the root migration entity to the config"
+  "Add the root migration entity to the config. The root migration is the start of the migration
+   chain for all adapters."
   [cfg]
   (cfg/with-provenance :module `add-root-migration
     (cfg/update cfg

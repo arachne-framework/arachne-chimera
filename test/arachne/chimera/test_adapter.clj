@@ -66,15 +66,14 @@
       (:db/id adapter))))
 
 (defn- find-entity
-  [data attr value]
+  [data  attr value]
   (->> data
-    :data
-    attr
-    (filter #(= value (get % attr)))
-    set))
+       :data
+       (filter #(= value (get % attr)))
+       first))
 
 (defn put-op
-  [adapter _ [type emap]]
+  [adapter _ emap]
   (let [[k v] (first (select-keys emap (model-keys adapter)))]
     (swap! *data*
       (fn [data]
@@ -84,12 +83,12 @@
               {:lookup [k v]
                :adapter-eid (:db/id adapter)
                :adapter-aid (:arachne/id adapter)})
-            (update-in data [:data type] (fnil conj #{}) emap))))))
+            (update-in data [:data] (fnil conj #{}) emap))))))
   true)
 
 (defn get-op
-  [adapter _ [type [attr value]]]
-  (find-entity @*data* attr value))
+  [adapter _ lookup]
+  (find-entity @*data* (:attribute lookup) (:value lookup)))
 
 (defn init-op
   [adapter _ _]
@@ -117,8 +116,8 @@
   ;;; Example DB
   {
    :migrations {:test/m1 ["abcdef" 1023402342423]}
-   :data {:my/type #{{:foo/bar 3}
-                     {:foo/bar 2}}}
+   :data #{{:foo/bar 3}
+           {:foo/bar 2}}
    }
 
 
