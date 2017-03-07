@@ -1,6 +1,7 @@
 (ns arachne.chimera.test-adapter
   (:require [arachne.core.config :as cfg]
             [arachne.core.dsl :as a]
+            [arachne.core.util :as util]
             [arachne.chimera.adapter :as adapter]
             [arachne.error :as err :refer [deferror error]]
             [clojure.spec :as s]
@@ -9,18 +10,32 @@
 
 (s/def :test.operation/foo any?)
 
-(def ^:dynamic *data*)
+(def ^:dynamic *global-data*)
+
+(defn atom-store-ctor
+  "Constructor for a new atom store"
+  [this]
+  (if (bound? #'*global-data*)
+    *global-data*
+    (atom {})))
 
 (defn test-adapter
   "DSL to define a test adapter instance in the config."
-  [migration]
+  [migration atomstore-aid]
   (let [capability (fn [op]
                      {:chimera.adapter.capability/operation op
                       :chimera.adapter.capability/atomic true})
+        atomstore-tid (cfg/tempid)
         tid (cfg/tempid)]
     (cfg/with-provenance :test `test-adapter
       (a/transact
-        [{:db/id tid
+        [(util/mkeep
+          {:db/id atomstore-tid
+          :arachne/id atomstore-aid
+          :arachne.component/constructor ::atom-store-ctor})
+         {:db/id tid
+          :arachne.component/dependencies [{:arachne.component.dependency/key :atom
+                                            :arachne.component.dependency/entity atomstore-tid}]
           :chimera.adapter/migrations [{:chimera.migration/name migration}]
           :chimera.adapter/capabilities (map capability [:chimera.operation/initialize-migrations
                                                          :chimera.operation/migrate
@@ -54,7 +69,11 @@
                                        {:chimera.adapter.dispatch/index 0,
                                         :chimera.adapter.dispatch/pattern
                                         "[:chimera.operation/delete _]",
-                                        :chimera.adapter.dispatch/impl ::delete-op}]}]
+                                        :chimera.adapter.dispatch/impl ::delete-op}
+                                       #_{:chimera.adapter.dispatch/index 0,
+                                        :chimera.adapter.dispatch/pattern
+                                        "[:chimera.operation/batch _]",
+                                        :chimera.adapter.dispatch/impl ::batch-op}]}]
         tid))))
 
 (defn- find-entity
@@ -82,10 +101,16 @@
               :key-attrs-str (err/bullet-list model-keys)}))
     lookup))
 
+(defn- datastore
+  "Retrieve the datastore for modification"
+  [adapter]
+  (:atom adapter))
+
 (defn put-op
   [adapter _ emap]
-  (let [[k v] (entity-map-lookup adapter emap :chimera.operation/put)]
-    (swap! *data*
+  (let [[k v] (entity-map-lookup adapter emap :chimera.operation/put)
+        ds (datastore adapter)]
+    (swap! ds
       (fn [data]
         (let [existing (when k (find-entity data k v))]
           (if existing
@@ -115,7 +140,7 @@
 (defn update-op
   [adapter _ emap]
   (let [[k v] (entity-map-lookup adapter emap :chimera.operation/update)]
-    (swap! *data*
+    (swap! (datastore adapter)
            (fn [data]
              (let [existing (when k (find-entity data k v))]
                (if existing
@@ -141,7 +166,7 @@
 
 (defn delete-op
   [adapter _ {:keys [attribute value]}]
-  (swap! *data*
+  (swap! (datastore adapter)
          (fn [data]
            (let [entity (find-entity data attribute value)]
              (if entity
@@ -155,7 +180,7 @@
 
 (defn get-op
   [adapter _ lookup]
-  (find-entity @*data* (:attribute lookup) (:value lookup)))
+  (find-entity @(datastore adapter) (:attribute lookup) (:value lookup)))
 
 (defn init-op
   [adapter _ _]
@@ -164,7 +189,7 @@
 (defn migrate-op
   [adapter _ [signature migration]]
   (let [name (:chimera.migration/name migration)]
-    (swap! *data* update-in [:migrations name]
+    (swap! (datastore adapter) update-in [:migrations name]
       (fn [[original-sig date]]
         (if original-sig
           (if (= original-sig signature)
