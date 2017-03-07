@@ -114,24 +114,27 @@
       (cfg/with-provenance :module `add-adapter-constructors
         (cfg/update cfg txdata)))))
 
-(let [cache (WeakHashMap.)]
-  (defn- supported-operations
-    "Return the operations that the given adapter supports.
+(defn weak-memoize
+  "Memoize a function using a weak hash map"
+  [f]
+  (let [cache (WeakHashMap.)]
+    (fn [& args]
+      (if-let [v (get cache args)]
+        v
+        (let [result (apply f args)]
+          (.put cache args result)
+          result)))))
 
-    Memoized using a WeakHashMap."
-    [adapter]
-    (if-let [v (get cache adapter)]
-      v
-      (do
-        (let [v (set (cfg/q (:arachne/config adapter)
-                       '[:find [?op ...]
-                         :in $ ?adapter
-                         :where
-                         [?adapter :chimera.adapter/capabilities ?cap]
-                         [?cap :chimera.adapter.capability/operation ?op]]
-                       (:db/id adapter)))]
-          (.put cache adapter v)
-          v)))))
+(defn supported-operations
+  "Return the operations that the given adapter supports."
+  [adapter]
+  (set (cfg/q (:arachne/config adapter)
+              '[:find [?op ...]
+                :in $ ?adapter
+                :where
+                [?adapter :chimera.adapter/capabilities ?cap]
+                [?cap :chimera.adapter.capability/operation ?op]]
+              (:db/id adapter))))
 
 (deferror ::unsupported-operation
   :message "Operation `:type` not supported by adapter `:adapter-eid` (Arachne ID: `:adapter-aid`)"
@@ -151,10 +154,12 @@
                  :supported "The operations that the adapter does support"
                  :supported-str "A bulleted list of supported operations (string)"})
 
+(def supported-operations-mem (weak-memoize supported-operations))
+
 (defn assert-operation-support
   "Validate that the given operation is supported by the specified adapter."
   [adapter operation-type]
-  (let [supported (supported-operations adapter)]
+  (let [supported (supported-operations-mem adapter)]
     (when-not (contains? supported operation-type)
       (let [supported-str (->> supported
                             (map #(str "  - `" % "`"))
@@ -165,6 +170,33 @@
                                         :supported supported
                                         :supported-str supported-str
                                         :type operation-type})))))
+
+
+(defn model-keys
+  "Return a set of primary keys in the adapter's model"
+  [adapter]
+  (set
+   (cfg/q (:arachne/config adapter)
+          '[:find [?key ...]
+            :in $ ?adapter
+            :where
+            [?adapter :chimera.adapter/model ?attr]
+            [?attr :chimera.attribute/key true]
+            [?attr :chimera.attribute/name ?key]]
+          (:db/id adapter))))
+
+(defn component-attrs
+  "Return a set of attributes that are component refs, in the adapter's model"
+  [adapter]
+  (set
+   (cfg/q (:arachne/config adapter)
+          '[:find [?attr-name ...]
+            :in $ ?adapter
+            :where
+            [?adapter :chimera.adapter/model ?attr]
+            [?attr :chimera.attribute/component true]
+            [?attr :chimera.attribute/name ?attr-name]]
+          (:db/id adapter))))
 
 ;; THIS IS WHAT WE'RE BUILDING
 (comment

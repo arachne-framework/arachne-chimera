@@ -1,6 +1,11 @@
 (ns arachne.chimera.specs
   (:require [clojure.spec :as s]))
 
+(defn lookup? [obj]
+  (instance? (resolve 'arachne.chimera.Lookup) obj))
+
+(s/def :chimera/lookup lookup?)
+
 ;; Structure of operation entity map txdata, for the config (eventually can be generated from model...)
 (s/def ::operation-txmap (s/keys :req [:chimera.migration.operation/type]
                                  :opt [:chimera.migration.operation/next]))
@@ -79,5 +84,6 @@
          :migration map?))
 
 (s/def :chimera.operation/put :chimera/entity-map)
-
 (s/def :chimera.operation/get :chimera/lookup)
+(s/def :chimera.operation/update :chimera/entity-map)
+(s/def :chimera.operation/delete :chimera/lookup)

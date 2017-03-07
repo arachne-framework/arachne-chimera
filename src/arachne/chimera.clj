@@ -10,7 +10,7 @@
             [arachne.chimera.migration :as migration]
             [arachne.chimera.adapter :as adapter]
             [valuehash.api :as vh])
-  (:refer-clojure :exclude [key get]))
+  (:refer-clojure :exclude [key get update]))
 
 (defn ^:no-doc schema
   "Return the schema for the arachne.chimera module"
@@ -82,13 +82,13 @@
 
 (defrecord Lookup [attribute value])
 
-(s/def :chimera/lookup #(instance? Lookup %))
-
 (defn lookup
   "Construct a Chimera lookup key"
-  ([[attr value]] (->Lookup attr value))
+  ([identifier]
+   (if (instance? Lookup identifier)
+     identifier
+     (apply ->Lookup identifier)))
   ([attr value] (->Lookup attr value)))
-
 
 (s/fdef put
   :args (s/cat :adapter adapter?
@@ -109,14 +109,44 @@
                                               :value :chimera/primitive))))
 
 (defn get
-  "Retrieve a Chimera entity map from a data source. Can look up entity based on a Lookup record,
-   a tuple of [key value] or separate key and value arguments.
+  "Retrieve the specified Chimera entity map from a data source.
 
    The entity map will contain all of the entity's attributes. Values of ref attributes will be Lookups."
   ([adapter identifier]
-   (println "id" identifier)
-   (if (instance? Lookup identifier)
-     (operate adapter :chimera.operation/get identifier)
-     (operate adapter :chimera.operation/get (lookup identifier))))
+   (operate adapter :chimera.operation/get (lookup identifier)))
   ([adapter key value]
    (operate adapter :chimera.operation/get (lookup key value))))
+
+(s/fdef update
+        :args (s/cat :adapter adapter?
+                     :entity-map :chimera/entity-map))
+
+(defn update
+  "Update a Chimera entity in a data source. The entity map must have at least one 'key'
+   attribute. An entity with the provided key must already be present in the database, `update` can
+   only modify existing records, not create new ones.
+
+   The entity will be updated with any other attributes present on the entity map. Cardinality-one
+   attributes will be changed to reflect the new value. Cardinality-many attributes will have a
+   value added (no old values will be removed)."
+  [adapter entity-map]
+  (operate adapter :chimera.operation/update entity-map))
+
+(s/fdef delete
+        :args (s/cat :adapter adapter?
+                     :lookup (s/alt :lookup-record :chimera/lookup
+                                    :tuple (s/tuple :chimera.attribute/name :chimera/primitive)
+                                    :attr-val (s/cat :attribute :chimera.attribute/name
+                                                     :value :chimera/primitive))))
+
+(defn delete
+  "Remove the specified Chimera entity and all its attributes from a data source.
+
+   Any component attributes will also be deleted.
+
+   The provided entity must exist; entities which do not exist cannot be deleted."
+  ([adapter identifier]
+   (operate adapter :chimera.operation/delete (lookup identifier)))
+  ([adapter key value]
+   (delete adapter [key value])))
+

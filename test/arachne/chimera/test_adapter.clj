@@ -1,7 +1,8 @@
 (ns arachne.chimera.test-adapter
   (:require [arachne.core.config :as cfg]
             [arachne.core.dsl :as a]
-            [arachne.error :refer [deferror error format-date]]
+            [arachne.chimera.adapter :as adapter]
+            [arachne.error :as err :refer [deferror error]]
             [clojure.spec :as s]
             [clojure.set :as set]
             [arachne.chimera.operation :as cho]))
@@ -49,21 +50,15 @@
                                         :chimera.adapter.dispatch/pattern
                                         "[:chimera.operation/get _]",
                                         :chimera.adapter.dispatch/impl ::get-op}
-                                       ]}]
+                                       {:chimera.adapter.dispatch/index 0,
+                                        :chimera.adapter.dispatch/pattern
+                                        "[:chimera.operation/update _]",
+                                        :chimera.adapter.dispatch/impl ::update-op}
+                                       {:chimera.adapter.dispatch/index 0,
+                                        :chimera.adapter.dispatch/pattern
+                                        "[:chimera.operation/delete _]",
+                                        :chimera.adapter.dispatch/impl ::delete-op}]}]
         tid))))
-
-(defn- model-keys
-  "Return a set of primary keys in the adapter's model"
-  [adapter]
-  (set
-    (cfg/q (:arachne/config adapter)
-      '[:find [?key ...]
-        :in $ ?adapter
-        :where
-        [?adapter :chimera.adapter/model ?attr]
-        [?attr :chimera.attribute/key true]
-        [?attr :chimera.attribute/name ?key]]
-      (:db/id adapter))))
 
 (defn- find-entity
   [data  attr value]
@@ -72,9 +67,27 @@
        (filter #(= value (get % attr)))
        first))
 
+(def model-keys (adapter/weak-memoize adapter/model-keys))
+
+(defn- entity-map-lookup
+  "Given an entity map, return the identity lookup, or throw an exception if none exists."
+  [adapter entity-map op]
+  (let [model-keys (model-keys adapter)
+        lookup (first (select-keys entity-map model-keys))]
+    (when-not lookup
+      (error ::cho/no-key-specified
+             {:op op
+              :adapter-eid (:db/id adapter)
+              :adapter-aid (:arachne/id adapter)
+              :provided-attrs (keys entity-map)
+              :provided-attrs-str (err/bullet-list (keys entity-map))
+              :key-attrs model-keys
+              :key-attrs-str (err/bullet-list model-keys)}))
+    lookup))
+
 (defn put-op
   [adapter _ emap]
-  (let [[k v] (first (select-keys emap (model-keys adapter)))]
+  (let [[k v] (entity-map-lookup adapter emap :chimera.operation/put)]
     (swap! *data*
       (fn [data]
         (let [existing (when k (find-entity data k v))]
@@ -84,6 +97,63 @@
                :adapter-eid (:db/id adapter)
                :adapter-aid (:arachne/id adapter)})
             (update-in data [:data] (fnil conj #{}) emap))))))
+  true)
+
+(defn- simple-coll? [x] (and (coll? x) (not (map? x))))
+
+(defn- update-merge
+  "Merge fn for updates"
+  [old new]
+  (if (and (simple-coll? old) (simple-coll? new))
+    (set (concat old new))
+    new))
+
+(defn- update-entity
+  "Update an item in the data store"
+  [entities entity update-map]
+  (let [entities (disj entities entity)
+        updated-entity (merge-with update-merge entity update-map)]
+    (conj entities updated-entity)))
+
+(defn update-op
+  [adapter _ emap]
+  (let [[k v] (entity-map-lookup adapter emap :chimera.operation/update)]
+    (swap! *data*
+           (fn [data]
+             (let [existing (when k (find-entity data k v))]
+               (if existing
+                 (update data :data update-entity existing emap)
+                 (error ::cho/entity-does-not-exist
+                        {:lookup [k v]
+                         :op :chimera.operation/update
+                         :adapter-eid (:db/id adapter)
+                         :adapter-aid (:arachne/id adapter)}))))))
+  true)
+
+(def component-attrs (adapter/weak-memoize adapter/component-attrs))
+
+(defn- delete-entity
+  "Delete the given entity from the data store"
+  [data entity component-attrs]
+  (let [component-values (select-keys entity component-attrs)
+        component-lookups (apply concat (vals component-values))
+        components (map (fn [[attr val]]
+                          (find-entity data attr val))
+                        component-lookups)]
+    (reduce delete-entity (disj data entity) components)))
+
+(defn delete-op
+  [adapter _ {:keys [attribute value]}]
+  (swap! *data*
+         (fn [data]
+           (let [entity (find-entity data attribute value)]
+             (if entity
+               (update data :data delete-entity entity (component-attrs adapter))
+               (error ::cho/entity-does-not-exist
+                      {:lookup [attribute value]
+                       :op :chimera.operation/delete
+                       :adapter-eid (:db/id adapter)
+                       :adapter-aid (:arachne/id adapter)})))))
   true)
 
 (defn get-op
@@ -103,13 +173,13 @@
           (if (= original-sig signature)
             [original-sig date]
             (error :arachne.chimera.migration/invalid-signature
-              {:name name
-               :adapter-eid (:db/id adapter)
-               :adapter-aid (:arachne/id adapter)
-               :original-time date
-               :original-time-str (str date (format-date date))
-               :original original-sig
-               :new signature}))
+                   {:name name
+                    :adapter-eid (:db/id adapter)
+                    :adapter-aid (:arachne/id adapter)
+                    :original-time date
+                    :original-time-str (err/format-date date)
+                    :original original-sig
+                    :new signature}))
           [signature (java.util.Date.)])))))
 
 (comment

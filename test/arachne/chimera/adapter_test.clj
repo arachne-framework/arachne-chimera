@@ -106,35 +106,53 @@
           (is (nil? (chimera/get adapter :test.person/id (UUID/randomUUID))))
           (is (thrown-with-msg? ArachneException #"already"
                                 (chimera/put adapter {:test.person/id james
-                                                      :test.person/name "James"}))))
+                                                      :test.person/name "James"})))
+          (is (thrown-with-msg? ArachneException #"requires a key"
+                                (chimera/put adapter {:test.person/name "Elizabeth"}))))
 
-        #_(testing "update"
-          (let [t1 (java.util.Date.)]
+        (testing "update"
+          (let [t1 (java.util.Date.)
+                t2 (java.util.Date.)]
 
-            (chimera/update adapter :test/Person {:test.person/id james
-                                                  :test.person/dob t})
+            (chimera/update adapter {:test.person/id james
+                                     :test.person/dob t1})
 
             (is (= {:test.person/id james,
                     :test.person/name "James"
                     :test.person/dob t1}
-                   (chimera/get adapter :test/Person :test.person/id james)))
+                   (chimera/get adapter :test.person/id james)))
 
-            (is (thrown-with-msg? ArachneException #"not found"
-                                  (chimera/update adapter :test/Person {:test.person/id james
-                                                                        :test.person/name "James"})))
+            (is (thrown-with-msg? ArachneException #"does not exist"
+                                  (chimera/update adapter {:test.person/id (UUID/randomUUID)
+                                                           :test.person/dob t1})))
 
-
-            ))
-
-
-        )
+            (is (thrown-with-msg? ArachneException #"requires a key"
+                                  (chimera/update adapter {:test.person/dob t1})))
 
 
+            (chimera/update adapter {:test.person/id james
+                                     :test.person/name "Jimmy"
+                                     :test.person/dob t2})
+
+            (is (= {:test.person/id james,
+                    :test.person/name "Jimmy"
+                    :test.person/dob t2}
+                   (chimera/get adapter :test.person/id james)))))
+
+        (testing "delete"
+
+          (chimera/delete adapter :test.person/id james)
+
+          (is (nil? (chimera/get adapter :test.person/id james)))
+
+          (is (thrown-with-msg? ArachneException #"does not exist"
+                                (chimera/delete adapter :test.person/id james)))
 
 
-        )
+          )
 
-      ))
+
+        ))))
 
 ;; Todo: finish implementing with tests for basic defined behavior of put/get/update/delete, including error cases.
 
