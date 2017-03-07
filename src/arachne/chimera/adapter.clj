@@ -197,34 +197,3 @@
             [?attr :chimera.attribute/component true]
             [?attr :chimera.attribute/name ?attr-name]]
           (:db/id adapter))))
-
-;; THIS IS WHAT WE'RE BUILDING
-(comment
-
-
-
-  ;; In-code API:
-  (operate adapter :chimera.operation/get [:myapp/Person :person/id 42])
-
-  ;; In module configuration (as data, will rarely be entered this way)
-  {:chimera.adapter/capabilities {}
-   :chimera.adapter/migrations []
-   :chimera.adapter/impls [{:chimera.adapter.impl/index 0
-                            :chimera.adapter.impl/pattern "[:chimera.operation/get _]"
-                            :chiemra.adapter.impl/fn :chimera.adapter.datomic-peer/get}
-                           {:chimera.adapter.impl/index 1
-                            :chimera.adapter.impl/pattern "[:chimera.operation/put _]"
-                            :chiemra.adapter.impl/fn :chimera.adapter.datomic-peer/put}
-                           {:chimera.adapter.impl/index 2
-                            :chimera.adapter.impl/pattern "[:chimera.operation/batch _]"
-                            :chiemra.adapter.impl/fn :chimera.adapter.datomic-peer/batch}]}
-
-  ;; User-facing DSL
-  (datomic-adapter :myapp/datomic
-    :migrations [:myapp.migrations/foo]
-    :uri "datomic:mem://foobar")
-
-  (extend-adapter :myapp/datomic
-    [:chimera.operation/get [:myapp/Person :person/id _]] 'myapp/get-person
-    [:chimera.operation/put [:myapp/Person _]] 'myapp/put-person)
-  )

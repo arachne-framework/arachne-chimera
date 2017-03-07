@@ -32,13 +32,7 @@
         "The operation that this capability describes.")
       (m/attr :chimera.adapter.capability/atomic :one :boolean
         "Is the operation itself atomic? That is, is it guaranteed to succeed or
-        fail as a unit, and leave the database untouched if it fails?")
-      (m/attr :chimera.adapter.capability/transactional :one :boolean
-        "Is the operation transactional with respect to other operations (in the
-        same batch?)")
-      (m/attr :chimera.adapter.capability/idempotent :one :boolean
-        "Is the operation idempotent? That is, does applying it to the database
-        multiple times yield the same result as applying it once?"))
+        fail as a unit, and leave the database untouched if it fails?"))
 
     ;; Static Entity Model
     (m/type :chimera/DataModelElement []

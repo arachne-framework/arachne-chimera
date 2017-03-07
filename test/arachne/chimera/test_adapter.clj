@@ -14,26 +14,23 @@
 (defn test-adapter
   "DSL to define a test adapter instance in the config."
   [migration]
-  (let [capability (fn [[op i]]
+  (let [capability (fn [op]
                      {:chimera.adapter.capability/operation op
-                      :chimera.adapter.capability/idempotent i
-                      :chimera.adapter.capability/transactional true
                       :chimera.adapter.capability/atomic true})
         tid (cfg/tempid)]
     (cfg/with-provenance :test `test-adapter
       (a/transact
         [{:db/id tid
           :chimera.adapter/migrations [{:chimera.migration/name migration}]
-          :chimera.adapter/capabilities (map capability
-                                          [[:chimera.operation/initialize-migrations true]
-                                           [:chimera.operation/migrate true]
-                                           [:chimera.operation/add-attribute true]
-                                           [:chimera.operation/get true]
-                                           [:chimera.operation/put false]
-                                           [:chimera.operation/update true]
-                                           [:chimera.operation/delete true]
-                                           [:chiemra.operation/batch false]
-                                           [:test.operation/foo true]])
+          :chimera.adapter/capabilities (map capability [:chimera.operation/initialize-migrations
+                                                         :chimera.operation/migrate
+                                                         :chimera.operation/add-attribute
+                                                         :chimera.operation/get
+                                                         :chimera.operation/put
+                                                         :chimera.operation/update
+                                                         :chimera.operation/delete
+                                                         :chimera.operation/batch
+                                                         :test.operation/foo])
           :chimera.adapter/dispatches [{:chimera.adapter.dispatch/index 0,
                                         :chimera.adapter.dispatch/pattern
                                         "[:chimera.operation/migrate _]",

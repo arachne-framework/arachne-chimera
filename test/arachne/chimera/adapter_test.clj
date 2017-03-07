@@ -155,6 +155,7 @@
         ))))
 
 ;; Todo: finish implementing with tests for basic defined behavior of put/get/update/delete, including error cases.
+;; Todo: test ref and component attributes
 
 (deftest batch
   (binding [ta/*data* (atom {})]
