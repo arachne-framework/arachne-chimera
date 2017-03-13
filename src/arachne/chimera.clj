@@ -7,6 +7,7 @@
             [arachne.core.runtime :as rt]
             [arachne.chimera.specs]
             [arachne.chimera.schema :as schema]
+            [arachne.chimera.operation :as ops]
             [arachne.chimera.migration :as migration]
             [arachne.chimera.adapter :as adapter]
             [valuehash.api :as vh])
@@ -21,6 +22,7 @@
   "Configure the arachne.chimera module"
   [cfg]
   (-> cfg
+    (ops/add-operations)
     (adapter/add-adapter-constructors)
     (migration/add-root-migration)
     (migration/ensure-migration-models)))
@@ -52,18 +54,30 @@
 (s/fdef operate
         :args (s/cat :adapter adapter?
                      :type :chimera/operation-type
-                     :payload :chimera/operation-payload))
+                     :payload :chimera/operation-payload
+                     :batch-context (s/? any?)))
 
 (defn operate
-  "Apply a Chimera operation to an adapter, first validating the operation."
-  [adapter type payload]
-  (e/assert-args `operate adapter type payload)
-  (adapter/assert-operation-support adapter type)
-  (let [op-spec (s/get-spec type)]
-    (when-not op-spec (error ::missing-op-spec {:op-type type}))
-    (e/assert op-spec payload ::failed-op-spec {:op-type type
-                                                :op-payload payload})
-    (adapter/operate- adapter type payload)))
+  "Apply a Chimera operation to an adapter, first validating the operation.
+
+  Optionally takes a fourth argument,the batch context of the current batch operation."
+  ([adapter type payload]
+   (e/assert-args `operate adapter type payload)
+   (adapter/assert-operation-support adapter type false)
+   (let [op-spec (s/get-spec type)]
+     (when-not op-spec (error ::missing-op-spec {:op-type type}))
+     (e/assert op-spec payload ::failed-op-spec {:op-type type
+                                                 :op-payload payload})
+     (adapter/operate- adapter type payload)))
+
+  ([adapter type payload batch-context]
+   (e/assert-args `operate adapter type payload batch-context)
+   (adapter/assert-operation-support adapter type true)
+   (let [op-spec (s/get-spec type)]
+     (when-not op-spec (error ::missing-op-spec {:op-type type}))
+     (e/assert op-spec payload ::failed-op-spec {:op-type type
+                                                 :op-payload payload})
+     (adapter/operate- adapter type payload batch-context))))
 
 (defn ensure-migrations
   "Given a config and a lookup for an adapter, ensure that all the adapter's

@@ -1,7 +1,65 @@
 (ns arachne.chimera.operation
   "Utilities for constructing and interacting with core Chimera operations"
-  (:require [arachne.error :refer [error deferror]]))
+  (:require [arachne.core.config :as cfg]
+            [arachne.chimera.specs]
+            [arachne.error :refer [error deferror]]
+            [clojure.spec :as s]))
 
+(s/def :chimera.operation/initialize-migrations #{true})
+
+(s/def :chimera.operation/migrate
+  (s/cat :signature string?
+         :migration map?))
+
+(s/def :chimera.operation/put :chimera/entity-map)
+(s/def :chimera.operation/get :chimera/lookup)
+(s/def :chimera.operation/update :chimera/entity-map)
+(s/def :chimera.operation/delete :chimera/lookup)
+
+(s/def :chimera.operation/batch (s/coll-of
+                                 (s/tuple :chimera/operation-type any?)
+                                 :min-count 1))
+
+
+(def operations
+  [{:chimera.operation/type :chimera.operation/initialize-migrations
+    :chimera.operation/batchable? false
+    :chimera.operation/idempotent? true
+    :arachne/doc "Initialize a database to support Chimera's migration model. This usually involves installing whatever schema is necessary to track migrations. For databases without a schema, this may be a no-op."}
+   {:chimera.operation/type :chimera.operation/migrate
+    :chimera.operation/batchable? false
+    :chimera.operation/idempotent? true
+    :arachne/doc "Apply a migration to a database."}
+   {:chimera.operation/type :chimera.operation/add-attribute
+    :chimera.operation/batchable? false
+    :chimera.operation/idempotent? true
+    :arachne/doc "Add an attribute definition to the database."}
+   {:chimera.operation/type :chimera.operation/get
+    :chimera.operation/batchable? false
+    :chimera.operation/idempotent? true
+    :arachne/doc "Retrieve an entity from the database."}
+   {:chimera.operation/type :chimera.operation/put
+    :chimera.operation/batchable? true
+    :chimera.operation/idempotent? false
+    :arachne/doc "Add a new entity to the database. The entity must not previously exist (as determined by any key attributes)."}
+   {:chimera.operation/type :chimera.operation/update
+    :chimera.operation/batchable? true
+    :chimera.operation/idempotent? true
+    :arachne/doc "Update an entity in the database. The entity must already exist."}
+   {:chimera.operation/type :chimera.operation/delete
+    :chimera.operation/batchable? true
+    :chimera.operation/idempotent? false
+    :arachne/doc "Delete an entity from the database. The entity must have previously existed."}
+   {:chimera.operation/type :chimera.operation/batch
+    :chimera.operation/batchable? false
+    :chimera.operation/idempotent? false
+    :arachne/doc "Execute a set of operations, transactionally if possible."}])
+
+(defn add-operations
+  "Add operation definitions to the given config"
+  [cfg]
+  (cfg/with-provenance :module `add-operations
+     (cfg/update cfg operations)))
 
 (deferror ::entity-already-exists
   :message "Entity `:lookup` already exists in adapter `:adapter-eid` (Arachne ID `:adapter-aid`)"

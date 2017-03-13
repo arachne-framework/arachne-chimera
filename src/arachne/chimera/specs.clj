@@ -75,15 +75,3 @@
                                                                  :key :chimera/lookup)))))
 
 
-;;; Operation Types
-
-(s/def :chimera.operation/initialize-migrations #{true})
-
-(s/def :chimera.operation/migrate
-  (s/cat :signature string?
-         :migration map?))
-
-(s/def :chimera.operation/put :chimera/entity-map)
-(s/def :chimera.operation/get :chimera/lookup)
-(s/def :chimera.operation/update :chimera/entity-map)
-(s/def :chimera.operation/delete :chimera/lookup)

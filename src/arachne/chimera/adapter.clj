@@ -14,12 +14,15 @@
 (defprotocol Adapter
   "An object representing an interface to some storage mechanism/database"
   (operate- [this operation-type payload]
+            [this operation-type payload batch-context]
     "Perform a Chimera operation on this adapter."))
 
 (defrecord ChimeraAdapter [dispatch]
   Adapter
   (operate- [this operation-type payload]
-    (dispatch this operation-type payload)))
+    (dispatch this operation-type payload))
+  (operate- [this operation-type payload batch-context]
+    (dispatch this operation-type payload batch-context)))
 
 (deferror ::missing-dispatch
   :message "Unknown dispatch operation `:op` for adapter `:adapter-eid` (Arachne ID: `:adapter-aid`)"
@@ -47,19 +50,10 @@
 
 (defn missing-dispatch
   "Throw an error for a missing dispatch"
-  [adapter op payload]
-  (let [dispatches (cfg/q (:arachne/config adapter)
-                     '[:find ?i ?p ?impl
-                       :in $ ?adapter
-                       :where
-                       [?a :chimera.adapter/dispatches ?d]
-                       [?d :chimera.adapter.dispatch/index ?i]
-                       [?d :chimera.adapter.dispatch/pattern ?p]
-                       [?d :chimera.adapter.dispatch/impl ?impl]]
-                     (:db/id adapter))
-        dispatches (sort-by first > dispatches)
-        dispatch-strings (map (fn [[_ p i]]
-                                    (str "`" p " " i "`"))
+  [adapter op payload all-dispatches]
+  (let [dispatches (sort-by first > all-dispatches)
+        dispatch-strings (map (fn [[_ _ op pattern impl]]
+                                    (str "`[" op " " pattern "] " impl "`"))
                            dispatches)
         dispatch-string (str/join "\n" dispatch-strings)]
     (error ::missing-dispatch {:adapter adapter
@@ -74,24 +68,38 @@
   "Based on the dispatches defined in the config, build and return a function
   that will handle adapter operations"
   [cfg adapter-eid]
-  (let [dispatches (cfg/q cfg '[:find ?i ?pattern ?impl
+  (let [dispatches (cfg/q cfg '[:find ?idx ?batchable ?op ?pattern ?impl
                                 :in $ ?adapter
                                 :where
-                                [?adapter :chimera.adapter/dispatches ?d]
-                                [?d :chimera.adapter.dispatch/index ?i]
+                                [?a :chimera.adapter/dispatches ?d]
+                                [?d :chimera.adapter.dispatch/index ?idx]
                                 [?d :chimera.adapter.dispatch/pattern ?pattern]
-                                [?d :chimera.adapter.dispatch/impl ?impl]]
-                     adapter-eid)
+                                [?d :chimera.adapter.dispatch/impl ?impl]
+                                [?d :chimera.adapter.dispatch/operation ?o]
+                                [?o :chimera.operation/type ?op]
+                                [?o :chimera.operation/batchable? ?batchable]]
+                          adapter-eid)
         dispatches (sort-by first > dispatches)
-        dispatch-clauses (mapcat (fn [[_ pattern fn]]
-                                   [(read-string pattern)
-                                    (list (symbol (namespace fn) (name fn))
+        batch-dispatches (filter second dispatches)
+        dispatch-clauses (mapcat (fn [[_ _ op pattern impl]]
+                                   [[op (read-string pattern)]
+                                    (list (symbol (namespace impl) (name impl))
                                       'adapter, 'op, 'payload)])
                            dispatches)
-        dispatch-fn `(fn [~'adapter ~'op ~'payload]
-                       (m/match [~'op ~'payload]
-                         ~@dispatch-clauses
-                         :else (missing-dispatch ~'adapter ~'op ~'payload)))]
+        batch-dispatch-clauses (mapcat (fn [[_ _ op pattern impl]]
+                                         [[op (read-string pattern)]
+                                          (list (symbol (namespace impl) (name impl))
+                                                'adapter, 'op, 'payload 'batch-context)])
+                                       dispatches)
+        dispatch-fn `(fn
+                       ([~'adapter ~'op ~'payload]
+                        (m/match [~'op ~'payload]
+                                 ~@dispatch-clauses
+                                 :else (missing-dispatch ~'adapter ~'op ~'payload ~(vec dispatches))))
+                       ([~'adapter ~'op ~'payload ~'batch-context]
+                        (m/match [~'op ~'payload]
+                                 ~@batch-dispatch-clauses
+                                 :else (missing-dispatch ~'adapter ~'op ~'payload ~(vec dispatches)))))]
     (eval dispatch-fn)))
 
 (defn ctor
@@ -126,15 +134,17 @@
           result)))))
 
 (defn supported-operations
-  "Return the operations that the given adapter supports."
+  "Return the operation types that the given adapter supports, as a map of {<type> <batchable?>}"
   [adapter]
-  (set (cfg/q (:arachne/config adapter)
-              '[:find [?op ...]
-                :in $ ?adapter
-                :where
-                [?adapter :chimera.adapter/capabilities ?cap]
-                [?cap :chimera.adapter.capability/operation ?op]]
-              (:db/id adapter))))
+  (into {} (cfg/q (:arachne/config adapter)
+                  '[:find ?type ?batchable
+                    :in $ ?adapter
+                    :where
+                    [?adapter :chimera.adapter/capabilities ?cap]
+                    [?cap :chimera.adapter.capability/operation ?op]
+                    [?op :chimera.operation/type ?type]
+                    [?op :chimera.operation/batchable? ?batchable]]
+                  (:db/id adapter))))
 
 (deferror ::unsupported-operation
   :message "Operation `:type` not supported by adapter `:adapter-eid` (Arachne ID: `:adapter-aid`)"
@@ -154,11 +164,18 @@
                  :supported "The operations that the adapter does support"
                  :supported-str "A bulleted list of supported operations (string)"})
 
+(deferror ::non-batch-operation
+          :message "Operation `:type` is not a batch-able operation."
+          :explanation "The system attempted to call a Chimera operation of type `:type`. However, the definition of that operation's semantics specifies that it is not intended to be run within a batch."
+          :suggestions ["Use a different type of operation which is supported inside a batch."
+                        "Use the operation separately, instead of inside a batch."]
+          :ex-data-docs {:type "The operation type"})
+
 (def supported-operations-mem (weak-memoize supported-operations))
 
 (defn assert-operation-support
   "Validate that the given operation is supported by the specified adapter."
-  [adapter operation-type]
+  [adapter operation-type batch?]
   (let [supported (supported-operations-mem adapter)]
     (when-not (contains? supported operation-type)
       (let [supported-str (->> supported
@@ -169,7 +186,11 @@
                                         :adapter-aid (:arachne/id adapter)
                                         :supported supported
                                         :supported-str supported-str
-                                        :type operation-type})))))
+                                        :type operation-type})))
+    (when batch?
+      (when-not (supported operation-type)
+        (error ::non-batch-operation
+               {:type operation-type})))))
 
 
 (defn model-keys

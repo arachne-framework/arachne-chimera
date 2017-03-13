@@ -2,6 +2,7 @@
   (:require [arachne.core.config :as cfg]
             [arachne.core.dsl :as a]
             [arachne.core.util :as util]
+            [arachne.chimera :as chimera]
             [arachne.chimera.adapter :as adapter]
             [arachne.error :as err :refer [deferror error]]
             [clojure.spec :as s]
@@ -21,18 +22,20 @@
 
 (defn test-adapter
   "DSL to define a test adapter instance in the config."
-  [migration atomstore-aid]
+  [migration]
   (let [capability (fn [op]
-                     {:chimera.adapter.capability/operation op
-                      :chimera.adapter.capability/atomic true})
+                     {:chimera.adapter.capability/operation {:chimera.operation/type op}
+                      :chimera.adapter.capability/atomic? true})
         atomstore-tid (cfg/tempid)
         tid (cfg/tempid)]
     (cfg/with-provenance :test `test-adapter
       (a/transact
         [(util/mkeep
           {:db/id atomstore-tid
-          :arachne/id atomstore-aid
-          :arachne.component/constructor ::atom-store-ctor})
+           :arachne.component/constructor ::atom-store-ctor})
+         {:chimera.operation/type :test.operation/foo
+          :chimera.operation/idempotent? false
+          :chimera.operation/batchable? false}
          {:db/id tid
           :arachne.component/dependencies [{:arachne.component.dependency/key :atom
                                             :arachne.component.dependency/entity atomstore-tid}]
@@ -47,32 +50,32 @@
                                                          :chimera.operation/batch
                                                          :test.operation/foo])
           :chimera.adapter/dispatches [{:chimera.adapter.dispatch/index 0,
-                                        :chimera.adapter.dispatch/pattern
-                                        "[:chimera.operation/migrate _]",
-                                        :chimera.adapter.dispatch/impl ::migrate-op}
-                                       {:chimera.adapter.dispatch/index 0,
-                                        :chimera.adapter.dispatch/pattern
-                                        "[:chimera.operation/initialize-migrations _]",
+                                        :chimera.adapter.dispatch/pattern "_"
+                                        :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/initialize-migrations}
                                         :chimera.adapter.dispatch/impl ::init-op}
                                        {:chimera.adapter.dispatch/index 0,
-                                        :chimera.adapter.dispatch/pattern
-                                        "[:chimera.operation/put _]",
+                                        :chimera.adapter.dispatch/pattern "_"
+                                        :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/migrate}
+                                        :chimera.adapter.dispatch/impl ::migrate-op}
+                                       {:chimera.adapter.dispatch/index 0,
+                                        :chimera.adapter.dispatch/pattern "_"
+                                        :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/put}
                                         :chimera.adapter.dispatch/impl ::put-op}
                                        {:chimera.adapter.dispatch/index 0,
-                                        :chimera.adapter.dispatch/pattern
-                                        "[:chimera.operation/get _]",
+                                        :chimera.adapter.dispatch/pattern "_"
+                                        :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/get}
                                         :chimera.adapter.dispatch/impl ::get-op}
                                        {:chimera.adapter.dispatch/index 0,
-                                        :chimera.adapter.dispatch/pattern
-                                        "[:chimera.operation/update _]",
+                                        :chimera.adapter.dispatch/pattern "_"
+                                        :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/update}
                                         :chimera.adapter.dispatch/impl ::update-op}
                                        {:chimera.adapter.dispatch/index 0,
-                                        :chimera.adapter.dispatch/pattern
-                                        "[:chimera.operation/delete _]",
+                                        :chimera.adapter.dispatch/pattern "_"
+                                        :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/delete}
                                         :chimera.adapter.dispatch/impl ::delete-op}
-                                       #_{:chimera.adapter.dispatch/index 0,
-                                        :chimera.adapter.dispatch/pattern
-                                        "[:chimera.operation/batch _]",
+                                       {:chimera.adapter.dispatch/index 0,
+                                        :chimera.adapter.dispatch/pattern "_"
+                                        :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/batch}
                                         :chimera.adapter.dispatch/impl ::batch-op}]}]
         tid))))
 
@@ -107,19 +110,21 @@
   (:atom adapter))
 
 (defn put-op
-  [adapter _ emap]
-  (let [[k v] (entity-map-lookup adapter emap :chimera.operation/put)
-        ds (datastore adapter)]
-    (swap! ds
-      (fn [data]
-        (let [existing (when k (find-entity data k v))]
-          (if existing
-            (error ::cho/entity-already-exists
+  ([adapter op-type emap]
+   (let [ds (datastore adapter)]
+     (swap! ds
+            (fn [data]
+              (put-op adapter op-type emap data))))
+   true)
+  ([adapter _ emap data]
+   (let [[k v] (entity-map-lookup adapter emap :chimera.operation/put)
+         existing (when k (find-entity data k v))]
+     (if existing
+       (error ::cho/entity-already-exists
               {:lookup [k v]
                :adapter-eid (:db/id adapter)
                :adapter-aid (:arachne/id adapter)})
-            (update-in data [:data] (fnil conj #{}) emap))))))
-  true)
+       (update-in data [:data] (fnil conj #{}) emap)))))
 
 (defn- simple-coll? [x] (and (coll? x) (not (map? x))))
 
@@ -138,19 +143,20 @@
     (conj entities updated-entity)))
 
 (defn update-op
-  [adapter _ emap]
-  (let [[k v] (entity-map-lookup adapter emap :chimera.operation/update)]
-    (swap! (datastore adapter)
-           (fn [data]
-             (let [existing (when k (find-entity data k v))]
-               (if existing
-                 (update data :data update-entity existing emap)
-                 (error ::cho/entity-does-not-exist
-                        {:lookup [k v]
-                         :op :chimera.operation/update
-                         :adapter-eid (:db/id adapter)
-                         :adapter-aid (:arachne/id adapter)}))))))
-  true)
+  ([adapter op-type emap]
+   (swap! (datastore adapter)
+          (fn [data] (update-op adapter op-type emap data)))
+   true)
+  ([adapter op-type emap data]
+   (let [[k v] (entity-map-lookup adapter emap :chimera.operation/update)
+         existing (when k (find-entity data k v))]
+     (if existing
+       (update data :data update-entity existing emap)
+       (error ::cho/entity-does-not-exist
+              {:lookup [k v]
+               :op :chimera.operation/update
+               :adapter-eid (:db/id adapter)
+               :adapter-aid (:arachne/id adapter)})))))
 
 (def component-attrs (adapter/weak-memoize adapter/component-attrs))
 
@@ -165,18 +171,20 @@
     (reduce delete-entity (disj data entity) components)))
 
 (defn delete-op
-  [adapter _ {:keys [attribute value]}]
-  (swap! (datastore adapter)
-         (fn [data]
-           (let [entity (find-entity data attribute value)]
-             (if entity
-               (update data :data delete-entity entity (component-attrs adapter))
-               (error ::cho/entity-does-not-exist
-                      {:lookup [attribute value]
-                       :op :chimera.operation/delete
-                       :adapter-eid (:db/id adapter)
-                       :adapter-aid (:arachne/id adapter)})))))
-  true)
+  ([adapter op-type lookup]
+   (swap! (datastore adapter)
+          (fn [data] (delete-op adapter op-type lookup data)))
+   true)
+  ([adapter op-type lookup data]
+   (let [{:keys [attribute value]} lookup
+         entity (find-entity data attribute value)]
+     (if entity
+       (update data :data delete-entity entity (component-attrs adapter))
+       (error ::cho/entity-does-not-exist
+              {:lookup [attribute value]
+               :op :chimera.operation/delete
+               :adapter-eid (:db/id adapter)
+               :adapter-aid (:arachne/id adapter)})))))
 
 (defn get-op
   [adapter _ lookup]
@@ -204,6 +212,32 @@
                     :new signature}))
           [signature (java.util.Date.)])))))
 
+(defn migrate-op
+  [adapter _ [signature migration]]
+  (let [name (:chimera.migration/name migration)]
+    (swap! (datastore adapter) update-in [:migrations name]
+           (fn [[original-sig date]]
+             (if original-sig
+               (if (= original-sig signature)
+                 [original-sig date]
+                 (error :arachne.chimera.migration/invalid-signature
+                        {:name name
+                         :adapter-eid (:db/id adapter)
+                         :adapter-aid (:arachne/id adapter)
+                         :original-time date
+                         :original-time-str (err/format-date date)
+                         :original original-sig
+                         :new signature}))
+               [signature (java.util.Date.)])))))
+
+(defn batch-op
+  [adapter _ payload]
+  (swap! (datastore adapter)
+         (fn [data]
+           (reduce (fn [data [op-type payload]]
+                     (chimera/operate adapter op-type payload data))
+                   data payload))))
+
 (comment
   ;;; Example DB
   {
@@ -211,6 +245,5 @@
    :data #{{:foo/bar 3}
            {:foo/bar 2}}
    }
-
 
   )

@@ -35,10 +35,11 @@
   (a/transact
     [{:arachne/id :test/adapter
       :arachne.component/constructor :clojure.core/hash-map
-      :chimera.adapter/capabilities [{:chimera.adapter.capability/operation :chimera.operation/get
-                                      :chimera.adapter.capability/atomic true}]
+      :chimera.adapter/capabilities [{:chimera.adapter.capability/operation {:chimera.operation/type :chimera.operation/get}
+                                      :chimera.adapter.capability/atomic? true}]
       :chimera.adapter/dispatches [{:chimera.adapter.dispatch/index 0
-                                    :chimera.adapter.dispatch/pattern "[_ _]"
+                                    :chimera.adapter.dispatch/pattern "_"
+                                    :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/get}
                                     :chimera.adapter.dispatch/impl :clojure.core/identity}]
       :chimera.adapter/migrations [{:chimera.migration/name :test/m2}
                                    {:chimera.migration/name :test/m3}]}])

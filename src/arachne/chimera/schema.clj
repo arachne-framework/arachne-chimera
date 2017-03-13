@@ -6,7 +6,16 @@
   "Schema for the Chimera module"
   (concat
 
-    (m/type :chimera/Adapter [:arachne/Component]
+   (m/type :chimera/Operation []
+     "An entity identifying an Chimera operation type and its intended semantics."
+     (m/attr :chimera.operation/type :one :keyword :identity
+       "The unique name for an operation type. The system also expects there to be a spec registered for the operation type.")
+     (m/attr :chimera.operation/batchable? :one :boolean
+       "Is the operation usable inside a batch (that is, can it be used inside a transaction if the system supports transactions?)")
+     (m/attr :chimera.operation/idempotent? :one :boolean
+       "Is the operation intended to be idempotent (that is, can it be safely applied multiple times with no effect?)"))
+
+   (m/type :chimera/Adapter [:arachne/Component]
       "An adapter component"
       (m/attr :chimera.adapter/model :many :component :chimera/DataModelElement
         "Data model elements that are part of the concrete data model for this Adapter.")
@@ -19,20 +28,22 @@
 
     (m/type :chimera.adapter/Dispatch []
       "Information used to dispatch operations to this adapter"
+      (m/attr :chimera.adapter.dispatch/operation :one :ref :chiemra/Operation
+        "The operation that this dispatch function supports")
       (m/attr :chimera.adapter.dispatch/index :one :long
         "Index of this dispatch option, used to calculate priority relative to other dispatches.")
       (m/attr :chimera.adapter.dispatch/pattern :one :string
-        "String representation of a core.match matching expression. It should match a tuple of the operation type and the operation payload.")
+        "String representation of a core.match matching expression, and will be used to match the operation payload.")
       (m/attr :chimera.adapter.dispatch/impl :one :keyword
         "Fully-qualified function name of the function that will be called for operations matching the pattern. Will be passed the adapter, the operation name and the operation payload."))
 
     (m/type :chimera.adapter/Capability []
       "Details about the level of support an adapter gives for a particular operation"
-      (m/attr :chimera.adapter.capability/operation :one :keyword
+      (m/attr :chimera.adapter.capability/operation :one :ref :chimera/Operation
         "The operation that this capability describes.")
-      (m/attr :chimera.adapter.capability/atomic :one :boolean
-        "Is the operation itself atomic? That is, is it guaranteed to succeed or
-        fail as a unit, and leave the database untouched if it fails?"))
+      (m/attr :chimera.adapter.capability/atomic? :one :boolean
+        "Does the adapter support this operation in an atomic way? That is, is it guaranteed to
+        succeed or fail as a unit, and leave the database untouched if it fails?"))
 
     ;; Static Entity Model
     (m/type :chimera/DataModelElement []
