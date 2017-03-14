@@ -5,7 +5,7 @@
             [arachne.chimera.test-harness.common :as common]
             [com.stuartsierra.component :as component]
             [clojure.test :as test :refer [testing is]])
-  (:import [java.util UUID]
+  (:import [java.util UUID Date]
            [arachne ArachneException]))
 
 (defn bad-operations
@@ -78,20 +78,55 @@
                   :test.person/dob t2}
                  (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))))
 
-      (testing "delete"
+      (testing "delete entity"
 
-        (chimera/operate adapter :chimera.operation/delete (chimera/lookup :test.person/id james))
+        (chimera/operate adapter :chimera.operation/delete-entity (chimera/lookup :test.person/id james))
 
         (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))
 
         (is (thrown-with-msg? ArachneException #"does not exist"
-                              (chimera/operate adapter :chimera.operation/delete
+                              (chimera/operate adapter :chimera.operation/delete-entity
                                                (chimera/lookup :test.person/id james))))))))
+
+(defn delete-attributes
+  [adapter-dsl-fn]
+  (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
+                               `(common/config 0 ~adapter-dsl-fn))
+        rt (rt/init cfg [:arachne/id :test/rt])
+        rt (component/start rt)
+        adapter (rt/lookup rt [:arachne/id :test/adapter])]
+
+    (let [james (UUID/randomUUID)
+          original-map {:test.person/id james
+                        :test.person/name "James"
+                        :test.person/dob (Date.)}]
+
+      (testing "Testing delete attr"
+        (chimera/operate adapter :chimera.operation/put original-map)
+
+        (chimera/operate adapter :chimera.operation/delete [(chimera/lookup :test.person/id james)
+                                                            :test.person/name "Jimmy-jim"])
+
+        (is (= original-map (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))
+
+        (chimera/operate adapter :chimera.operation/delete [(chimera/lookup :test.person/id james)
+                                                            :test.person/name "James"])
+
+        (is (= (dissoc original-map :test.person/name)
+               (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))
+
+        (chimera/operate adapter :chimera.operation/delete [(chimera/lookup :test.person/id james)
+                                                            :test.person/dob])
+
+        (is (= {:test.person/id james}
+               (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))))))
 
 (defn exercise-all
   [adapter-dsl-fn]
   (bad-operations adapter-dsl-fn)
-  (simple-crud adapter-dsl-fn))
+  (simple-crud adapter-dsl-fn)
+  (delete-attributes adapter-dsl-fn)
+  )
 
 
 

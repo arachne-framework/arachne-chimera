@@ -47,6 +47,7 @@
                                                          :chimera.operation/put
                                                          :chimera.operation/update
                                                          :chimera.operation/delete
+                                                         :chimera.operation/delete-entity
                                                          :chimera.operation/batch
                                                          :test.operation/foo])
           :chimera.adapter/dispatches [{:chimera.adapter.dispatch/index 0,
@@ -71,8 +72,16 @@
                                         :chimera.adapter.dispatch/impl ::update-op}
                                        {:chimera.adapter.dispatch/index 0,
                                         :chimera.adapter.dispatch/pattern "_"
+                                        :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/delete-entity}
+                                        :chimera.adapter.dispatch/impl ::delete-entity-op}
+                                       {:chimera.adapter.dispatch/index 0,
+                                        :chimera.adapter.dispatch/pattern "[_ _ _]"
                                         :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/delete}
-                                        :chimera.adapter.dispatch/impl ::delete-op}
+                                        :chimera.adapter.dispatch/impl ::delete-attr-value-op}
+                                       {:chimera.adapter.dispatch/index 1,
+                                        :chimera.adapter.dispatch/pattern "[_ _]"
+                                        :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/delete}
+                                        :chimera.adapter.dispatch/impl ::delete-attr-op}
                                        {:chimera.adapter.dispatch/index 0,
                                         :chimera.adapter.dispatch/pattern "_"
                                         :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/batch}
@@ -80,34 +89,47 @@
         tid))))
 
 (defn- find-entity
-  [data  attr value]
-  (->> data
-       :data
-       (filter #(= value (get % attr)))
-       first))
-
-(def model-keys (adapter/weak-memoize adapter/model-keys))
+  ([data lookup]
+   (find-entity data (:attribute lookup) (:value lookup)))
+  ([data attr value]
+   (->> data
+        :data
+        (filter #(= value (get % attr)))
+        first)))
 
 (defn- entity-map-lookup
   "Given an entity map, return the identity lookup, or throw an exception if none exists."
   [adapter entity-map op]
-  (let [model-keys (model-keys adapter)
-        lookup (first (select-keys entity-map model-keys))]
-    (when-not lookup
-      (error ::cho/no-key-specified
-             {:op op
-              :adapter-eid (:db/id adapter)
-              :adapter-aid (:arachne/id adapter)
-              :provided-attrs (keys entity-map)
-              :provided-attrs-str (err/bullet-list (keys entity-map))
-              :key-attrs model-keys
-              :key-attrs-str (err/bullet-list model-keys)}))
-    lookup))
+  (let [key (first (filter #(adapter/key? adapter %) (keys entity-map)))]
+    (when-not key
+      (let [model-keys (adapter/key-attributes adapter)]
+        (error ::cho/no-key-specified
+               {:op op
+                :adapter-eid (:db/id adapter)
+                :adapter-aid (:arachne/id adapter)
+                :provided-attrs model-keys
+                :provided-attrs-str (err/bullet-list (keys entity-map))
+                :key-attrs (adapter/key-attributes adapter)
+                :key-attrs-str (err/bullet-list model-keys)})))
+    [key (entity-map key)]))
 
 (defn- datastore
   "Retrieve the datastore for modification"
   [adapter]
   (:atom adapter))
+
+(defn- ensure-ref-values
+  "Given an entity map, ensure that all lookup values exist in the data store, throwing an error otherwise"
+  [adapter op data entity-map]
+  (let [all-vals (apply concat (map #(if (set? %) % #{%}) (vals entity-map)))
+        lookups (filter #(instance? arachne.chimera.Lookup %) all-vals)]
+    (doseq [lu lookups]
+      (when-not (find-entity data lu)
+        (error ::cho/entity-does-not-exist
+               {:lookup [(:attribute lu) (:value lu)]
+                :op op
+                :adapter-eid (:db/id adapter)
+                :adapter-aid (:arachne/id adapter)})))))
 
 (defn put-op
   ([adapter op-type emap]
@@ -124,7 +146,9 @@
               {:lookup [k v]
                :adapter-eid (:db/id adapter)
                :adapter-aid (:arachne/id adapter)})
-       (update-in data [:data] (fnil conj #{}) emap)))))
+       (do
+         (ensure-ref-values adapter :chimera.operation/put data emap)
+         (update-in data [:data] (fnil conj #{}) emap))))))
 
 (defn- simple-coll? [x] (and (coll? x) (not (map? x))))
 
@@ -151,37 +175,97 @@
    (let [[k v] (entity-map-lookup adapter emap :chimera.operation/update)
          existing (when k (find-entity data k v))]
      (if existing
-       (update data :data update-entity existing emap)
+       (do
+         (ensure-ref-values adapter :chimera.operation/update data emap)
+         (update data :data update-entity existing emap))
        (error ::cho/entity-does-not-exist
               {:lookup [k v]
                :op :chimera.operation/update
                :adapter-eid (:db/id adapter)
                :adapter-aid (:arachne/id adapter)})))))
 
-(def component-attrs (adapter/weak-memoize adapter/component-attrs))
-
 (defn- delete-entity
   "Delete the given entity from the data store"
-  [data entity component-attrs]
-  (let [component-values (select-keys entity component-attrs)
-        component-lookups (apply concat (vals component-values))
+  [data entity adapter]
+  (let [component-lookups (mapcat (fn [[k v]]
+                                    (when (adapter/component? adapter k)
+                                      (if (set? v) v #{v})))
+                                entity)
         components (map (fn [[attr val]]
                           (find-entity data attr val))
                         component-lookups)]
     (reduce delete-entity (disj data entity) components)))
 
-(defn delete-op
+(defn delete-entity-op
   ([adapter op-type lookup]
    (swap! (datastore adapter)
-          (fn [data] (delete-op adapter op-type lookup data)))
+          (fn [data] (delete-entity-op adapter op-type lookup data)))
    true)
   ([adapter op-type lookup data]
-   (let [{:keys [attribute value]} lookup
-         entity (find-entity data attribute value)]
+   (let [entity (find-entity data lookup)]
      (if entity
-       (update data :data delete-entity entity (component-attrs adapter))
+       (update data :data delete-entity entity adapter)
        (error ::cho/entity-does-not-exist
-              {:lookup [attribute value]
+              {:lookup [(:attribute lookup) (:value lookup)]
+               :op :chimera.operation/delete-entity
+               :adapter-eid (:db/id adapter)
+               :adapter-aid (:arachne/id adapter)})))))
+
+(defn- delete-attr
+  [data entity attr adapter]
+  (let [new-entity (dissoc entity attr)
+        new-data (conj (disj data entity) new-entity)
+        cleaned-data (if (and (not= entity new-entity) (adapter/component? adapter attr))
+                       (reduce (fn [data to-remove]
+                                 (delete-entity data (find-entity data to-remove) adapter))
+                               new-data
+                               (get entity attr))
+                       new-data)]
+    cleaned-data))
+
+(defn delete-attr-op
+  ([adapter op-type payload]
+   (swap! (datastore adapter)
+          (fn [data] (delete-attr-op adapter op-type payload data)))
+   true)
+  ([adapter op-type [lookup attr] data]
+   (let [entity (find-entity data lookup)]
+     (if entity
+       (update data :data delete-attr entity attr adapter)
+       (error ::cho/entity-does-not-exist
+              {:lookup [(:attribute lookup) (:value lookup)]
+               :op :chimera.operation/delete
+               :adapter-eid (:db/id adapter)
+               :adapter-aid (:arachne/id adapter)})))))
+
+(defn- delete-attr-value
+  [data entity attr value adapter]
+  (let [new-entity (into {} (filter (fn [[k v]]
+                                      (if (= attr k)
+                                        (if (set? v)
+                                          [k (disj v value)]
+                                          (if (= value v)
+                                            nil
+                                            [k v]))
+                                        [k v]))
+                                    entity))
+        new-data (conj (disj data entity) new-entity)
+        cleaned-data (if (and (not= entity new-entity) (adapter/component? adapter attr))
+                       (delete-entity data (find-entity data value) adapter)
+                       new-data)]
+    cleaned-data))
+
+(defn delete-attr-value-op
+  ([adapter op-type payload]
+   (swap! (datastore adapter)
+          (fn [data] (delete-attr-value-op adapter op-type payload data)))
+   true)
+  ([adapter op-type [lookup attr value] data]
+   (let [entity (find-entity data lookup)]
+     (if entity
+       (update data :data delete-attr-value entity attr value adapter)
+       (error ::cho/entity-does-not-exist
+              {:lookup [(:attribute lookup) (:value lookup)]
                :op :chimera.operation/delete
                :adapter-eid (:db/id adapter)
                :adapter-aid (:arachne/id adapter)})))))

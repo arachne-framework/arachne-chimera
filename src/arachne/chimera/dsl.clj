@@ -55,7 +55,7 @@
     :max (s/cat :kw #{:max} :val number?)
     :prim ::primitive-type
     :ref (s/cat :kw #{:ref} :val :chimera.type/name)
-    :component (s/cat :kw #{:ref} :val :chimera.type/name)
+    :component (s/cat :kw #{:component} :val :chimera.type/name)
     :index #{:index}
     :key #{:key}))
 
@@ -69,8 +69,7 @@
             :max {:chimera.attribute/max-cardinality val}
             :prim {:chimera.attribute/range (primitive-type v)}
             :ref {:chimera.attribute/range val}
-            :component {:chimera.attribute/range val
-                        :chimera.attribute/domain val}
+            :component {:chimera.attribute/range val}
             :index {:chimera.attribute/indexed true}
             :key {:chimera.attribute/key true})]
     (merge attr-map m)))

@@ -14,12 +14,16 @@
 (s/def :chimera.operation/put :chimera/entity-map)
 (s/def :chimera.operation/get :chimera/lookup)
 (s/def :chimera.operation/update :chimera/entity-map)
-(s/def :chimera.operation/delete :chimera/lookup)
+(s/def :chimera.operation/delete-entity :chimera/lookup)
+
+(s/def :chimera.operation/delete (s/cat :entity :chimera/lookup
+                                        :attribute :chimera.attribute/name
+                                        :value (s/? (s/or :primitive :chimera/primitive
+                                                          :ref :chimera/lookup))))
 
 (s/def :chimera.operation/batch (s/coll-of
                                  (s/tuple :chimera/operation-type any?)
                                  :min-count 1))
-
 
 (def operations
   [{:chimera.operation/type :chimera.operation/initialize-migrations
@@ -46,10 +50,14 @@
     :chimera.operation/batchable? true
     :chimera.operation/idempotent? true
     :arachne/doc "Update an entity in the database. The entity must already exist."}
-   {:chimera.operation/type :chimera.operation/delete
+   {:chimera.operation/type :chimera.operation/delete-entity
     :chimera.operation/batchable? true
     :chimera.operation/idempotent? false
     :arachne/doc "Delete an entity from the database. The entity must have previously existed."}
+   {:chimera.operation/type :chimera.operation/delete
+    :chimera.operation/batchable? true
+    :chimera.operation/idempotent? true
+    :arachne/doc "Remove an attribute from an entity. If a value is specified removes only attributes with that value, otherwise removes all values of the attribute."}
    {:chimera.operation/type :chimera.operation/batch
     :chimera.operation/batchable? false
     :chimera.operation/idempotent? false

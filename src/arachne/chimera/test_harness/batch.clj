@@ -50,7 +50,7 @@
         (chimera/operate adapter :chimera.operation/batch
                          [[:chimera.operation/update {:test.person/id james
                                                       :test.person/name "Jimmy"}]
-                          [:chimera.operation/delete (chimera/lookup :test.person/id mary)]])
+                          [:chimera.operation/delete-entity (chimera/lookup :test.person/id mary)]])
 
         (is (= {:test.person/id james
                 :test.person/name "Jimmy"}
@@ -65,6 +65,6 @@
                                   (chimera/operate adapter :chimera.operation/batch
                                                    [[:chimera.operation/put {:test.person/id edward
                                                                              :test.person/name "Edward"}]
-                                                    [:chimera.operation/delete (chimera/lookup :test.person/id (UUID/randomUUID))]])))
+                                                    [:chimera.operation/delete-entity (chimera/lookup :test.person/id (UUID/randomUUID))]])))
             (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id edward))))))))))
 

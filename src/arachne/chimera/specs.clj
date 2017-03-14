@@ -71,7 +71,8 @@
 (s/def :chimera/entity-map
   (s/map-of :chimera.attribute/name (s/or :primitive :chimera/primitive
                                           :key :chimera/lookup
-                                          :coll (s/coll-of (s/or :primitive :chimera/primtive
-                                                                 :key :chimera/lookup)))))
+                                          :coll (s/coll-of (s/or :primitive :chimera/primitive
+                                                                 :key :chimera/lookup)
+                                                           :kind set?))))
 
 

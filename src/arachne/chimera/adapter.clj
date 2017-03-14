@@ -17,7 +17,7 @@
             [this operation-type payload batch-context]
     "Perform a Chimera operation on this adapter."))
 
-(defrecord ChimeraAdapter [dispatch]
+(defrecord ChimeraAdapter [dispatch supported-operations attributes]
   Adapter
   (operate- [this operation-type payload]
     (dispatch this operation-type payload))
@@ -102,10 +102,38 @@
                                  :else (missing-dispatch ~'adapter ~'op ~'payload ~(vec dispatches)))))]
     (eval dispatch-fn)))
 
+(defn- supported-operations
+  "Return the operation types that the given adapter supports, as a map of {<type> <batchable?>}"
+  [cfg adapter-eid]
+  (into {} (cfg/q cfg
+                  '[:find ?type ?batchable
+                    :in $ ?adapter
+                    :where
+                    [?adapter :chimera.adapter/capabilities ?cap]
+                    [?cap :chimera.adapter.capability/operation ?op]
+                    [?op :chimera.operation/type ?type]
+                    [?op :chimera.operation/batchable? ?batchable]]
+                  adapter-eid)))
+
+(defn- attributes
+  "Return a map of attribute names to attribute entity maps, for all attributes known to the Adapter"
+  [cfg adapter-eid]
+  (let [attrs (cfg/q cfg '[:find [?attr ...]
+                           :in $ ?adapter
+                           :where
+                           [?adapter :chimera.adapter/model ?attr]
+                           [?attr :chimera.attribute/name _]]
+                     adapter-eid)
+        attrs (map #(cfg/pull cfg '[*] %) attrs)]
+    (zipmap (map :chimera.attribute/name attrs)
+            attrs)))
+
 (defn ctor
   "Constructor function for all adapter components"
   [cfg eid]
-  (->ChimeraAdapter (build-dispatch-fn cfg eid)))
+  (->ChimeraAdapter (build-dispatch-fn cfg eid)
+                    (supported-operations cfg eid)
+                    (attributes cfg eid)))
 
 (defn add-adapter-constructors
   "Ensure that every Adapter entity in the config has the correct constructor"
@@ -121,30 +149,6 @@
       cfg
       (cfg/with-provenance :module `add-adapter-constructors
         (cfg/update cfg txdata)))))
-
-(defn weak-memoize
-  "Memoize a function using a weak hash map"
-  [f]
-  (let [cache (WeakHashMap.)]
-    (fn [& args]
-      (if-let [v (get cache args)]
-        v
-        (let [result (apply f args)]
-          (.put cache args result)
-          result)))))
-
-(defn supported-operations
-  "Return the operation types that the given adapter supports, as a map of {<type> <batchable?>}"
-  [adapter]
-  (into {} (cfg/q (:arachne/config adapter)
-                  '[:find ?type ?batchable
-                    :in $ ?adapter
-                    :where
-                    [?adapter :chimera.adapter/capabilities ?cap]
-                    [?cap :chimera.adapter.capability/operation ?op]
-                    [?op :chimera.operation/type ?type]
-                    [?op :chimera.operation/batchable? ?batchable]]
-                  (:db/id adapter))))
 
 (deferror ::unsupported-operation
   :message "Operation `:type` not supported by adapter `:adapter-eid` (Arachne ID: `:adapter-aid`)"
@@ -171,12 +175,10 @@
                         "Use the operation separately, instead of inside a batch."]
           :ex-data-docs {:type "The operation type"})
 
-(def supported-operations-mem (weak-memoize supported-operations))
-
 (defn assert-operation-support
   "Validate that the given operation is supported by the specified adapter."
   [adapter operation-type batch?]
-  (let [supported (supported-operations-mem adapter)]
+  (let [supported (:supported-operations adapter)]
     (when-not (contains? supported operation-type)
       (let [supported-str (->> supported
                             (map #(str "  - `" % "`"))
@@ -192,29 +194,22 @@
         (error ::non-batch-operation
                {:type operation-type})))))
 
+(defn key?
+  "Given an adapter and an attribute name, return true if the attribute is a key in the adapter's model"
+  [adapter attr]
+  (-> adapter :attributes attr :chimera.attribute/key))
 
-(defn model-keys
-  "Return a set of primary keys in the adapter's model"
+(defn key-attributes
+  "Given an adapter, return a set of attribute names for all the keys in the adapter's model"
   [adapter]
-  (set
-   (cfg/q (:arachne/config adapter)
-          '[:find [?key ...]
-            :in $ ?adapter
-            :where
-            [?adapter :chimera.adapter/model ?attr]
-            [?attr :chimera.attribute/key true]
-            [?attr :chimera.attribute/name ?key]]
-          (:db/id adapter))))
+  (->> adapter
+       :attributes
+       (map val)
+       (filter :chimera.attribute/key)
+       (map :chimera.attribute/name)
+       (set)))
 
-(defn component-attrs
-  "Return a set of attributes that are component refs, in the adapter's model"
-  [adapter]
-  (set
-   (cfg/q (:arachne/config adapter)
-          '[:find [?attr-name ...]
-            :in $ ?adapter
-            :where
-            [?adapter :chimera.adapter/model ?attr]
-            [?attr :chimera.attribute/component true]
-            [?attr :chimera.attribute/name ?attr-name]]
-          (:db/id adapter))))
+(defn component?
+  "Given an adapter and an attibute name, return true if the attribute is a component attribute."
+  [adapter attr]
+  (-> adapter :attributes attr :chimera.attribute/component))
