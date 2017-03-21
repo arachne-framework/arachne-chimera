@@ -119,13 +119,33 @@
                                                             :test.person/dob])
 
         (is (= {:test.person/id james}
-               (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))))))
+               (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james)))))
+
+      (testing "delete attr cannot delete key attributes"
+
+        (is (thrown-with-msg? ArachneException #"Cannot delete key attribute"
+              (chimera/operate adapter :chimera.operation/delete [(chimera/lookup :test.person/id james)
+                                                                  :test.person/id])
+              ))
+
+        ))))
 
 (defn exercise-all
   [adapter-dsl-fn]
   (bad-operations adapter-dsl-fn)
   (simple-crud adapter-dsl-fn)
   (delete-attributes adapter-dsl-fn)
+  )
+
+
+
+(comment
+
+  (require '[arachne.chimera.test-adapter])
+
+  (test/deftest run
+    (exercise-all arachne.chimera.test-adapter/test-adapter))
+
   )
 
 

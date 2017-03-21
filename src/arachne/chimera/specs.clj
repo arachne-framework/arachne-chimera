@@ -67,12 +67,13 @@
                             :uuid    :chimera.primitive/uuid
                             :bytes   :chimera.primitive/bytes))
 
-
 (s/def :chimera/entity-map
   (s/map-of :chimera.attribute/name (s/or :primitive :chimera/primitive
-                                          :key :chimera/lookup
+                                          :ref :chimera/lookup
+                                          :component :chimera/entity-map
                                           :coll (s/coll-of (s/or :primitive :chimera/primitive
-                                                                 :key :chimera/lookup)
+                                                                 :ref :chimera/lookup
+                                                                 :component :chimera/entity-map)
                                                            :kind set?))))
 
 

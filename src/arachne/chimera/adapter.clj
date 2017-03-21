@@ -48,7 +48,7 @@
                  :payload "operation payload data"
                  :payload-str "pprinted payload data"})
 
-(defn missing-dispatch
+(defn ^:no-doc missing-dispatch
   "Throw an error for a missing dispatch"
   [adapter op payload all-dispatches]
   (let [dispatches (sort-by first > all-dispatches)
@@ -213,3 +213,27 @@
   "Given an adapter and an attibute name, return true if the attribute is a component attribute."
   [adapter attr]
   (-> adapter :attributes attr :chimera.attribute/component))
+
+(def ^:private primitives
+  "Primitive value types"
+  #{:chimera.primitive/boolean
+    :chimera.primitive/string
+    :chimera.primitive/keyword
+    :chimera.primitive/long
+    :chimera.primitive/double
+    :chimera.primitive/bigdec
+    :chimera.primitive/bigint
+    :chimera.primitive/instant
+    :chimera.primitive/uuid
+    :chimera.primitive/bytes})
+
+(defn ref?
+  "Given an adapter and an attibute name, return true if the attribute is a ref attribute."
+  [adapter attr]
+  (let [range (-> adapter :attributes attr :chimera.attribute/range)]
+    (and range (not (primitives range)))))
+
+(defn cardinality-many?
+  "Given an adapter and an attibute name, return true if the attribute permits multiple values."
+  [adapter attr]
+  (not (= 1 (-> adapter :attributes attr :chimera.attribute/max-cardinality))))

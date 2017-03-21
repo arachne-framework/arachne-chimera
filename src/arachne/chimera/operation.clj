@@ -114,3 +114,40 @@
                          :provided-attrs-str "Entity map attrs (formatted)"
                          :key-attrs "Key attrs in the adapter schema"
                          :key-attrs-str "Key attrs (formatted)"})
+
+
+(deferror ::unexpected-cardinality-one
+          :message "Value for attribute `:attribute` must be a set"
+          :explanation "Chimera attempted to perform a `:op` operation. The supplied entity map contained the key `:attribute`, with a value of `:value`. However, this value was given as a single value, rather than as a set of values.
+
+           Because `:attribute` is a cardinality-many attribute (that is, it may have more than one value), its values should always be represented as a set when passing an entity map to a Chimera operation."
+          :suggestions ["Use a set instead of a single value. The set may contain one element if desired."]
+          :ex-data-docs {:attribute "the attribute"
+                         :value "the value provided"
+                         :op "The operation"
+                         :adapter-eid "Adapter entity ID"
+                         :adapter-aid "Adapter Arachne ID"})
+
+(deferror ::unexpected-cardinality-many
+          :message "Value for attribute `:attribute` must be a single value"
+          :explanation "Chimera attempted to perform a `:op` operation. The supplied entity map contained the key `:attribute`, with a value of `:value`. However, this value was given as a set, rather than as a single value.
+
+           Because `:attribute` is a cardinality-one attribute, (that is, it may have at most one value), the value should always be represented as a single value when passing an entity map to a Chimera operation."
+          :suggestions ["Use a single value instead of a set."]
+          :ex-data-docs {:attribute "the attribute"
+                         :value "the value provided"
+                         :op "The operation"
+                         :adapter-eid "Adapter entity ID"
+                         :adapter-aid "Adapter Arachne ID"})
+
+(deferror ::cannot-delete-key-attr
+  :message "Cannot delete key attribute `:attribute`"
+  :explanation "Chimera attempted to perform a `:chimera.operation/delete` operation, to remove the value of the `:attribute` value from an entity identified by `:lookup`.
+
+  However, the `:attribute` attribute is a 'key attribute', meaning that it is used as the primary identifier of an entity. Key attributes cannot be deleted, because that would make it impossible to reference the entity in the system."
+  :suggestions ["Delete the entire entity using the `:chimera.operation/delete-entity` operation"
+                "Delete other attributes of the entity"]
+  :ex-data-docs {:attribute "the key attribute"
+                 :lookup "The entity targeted by the delte"
+                 :adapter-eid "Adapter entity ID"
+                 :adapter-aid "Adapter Arachne ID"})

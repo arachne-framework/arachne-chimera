@@ -121,15 +121,30 @@
 (defn- ensure-ref-values
   "Given an entity map, ensure that all lookup values exist in the data store, throwing an error otherwise"
   [adapter op data entity-map]
-  (let [all-vals (apply concat (map #(if (set? %) % #{%}) (vals entity-map)))
-        lookups (filter #(instance? arachne.chimera.Lookup %) all-vals)]
-    (doseq [lu lookups]
-      (when-not (find-entity data lu)
-        (error ::cho/entity-does-not-exist
-               {:lookup [(:attribute lu) (:value lu)]
-                :op op
-                :adapter-eid (:db/id adapter)
-                :adapter-aid (:arachne/id adapter)})))))
+  (doseq [[attr value] entity-map]
+    (when (adapter/ref? adapter attr)
+      (let [card-many? (adapter/cardinality-many? adapter attr)]
+        (when (and card-many? (not (set? value)))
+          (error ::cho/unexpected-cardinality-one
+                 {:attribute attr
+                  :value value
+                  :op op
+                  :adapter-eid (:db/id adapter)
+                  :adapter-aid (:arachne/id adapter)}))
+        (when (and (set? value) (not card-many?))
+          (error ::cho/unexpected-cardinality-many
+                 {:attribute attr
+                  :value value
+                  :op op
+                  :adapter-eid (:db/id adapter)
+                  :adapter-aid (:arachne/id adapter)}))
+        (doseq [lu (if card-many? value [value])]
+          (when-not (find-entity data lu)
+            (error ::cho/entity-does-not-exist
+                   {:lookup [(:attribute lu) (:value lu)]
+                    :op op
+                    :adapter-eid (:db/id adapter)
+                    :adapter-aid (:arachne/id adapter)})))))))
 
 (defn put-op
   ([adapter op-type emap]
@@ -184,6 +199,18 @@
                :adapter-eid (:db/id adapter)
                :adapter-aid (:arachne/id adapter)})))))
 
+(defn- remove-entity-references
+  "Remove all ref attributes targeting the specified lookup"
+  [data entity adapter]
+  (let [lu (chimera/lookup (entity-map-lookup adapter entity :arachne.operation/delete-entity))]
+    (set (map (fn [entity]
+           (into {} (map (fn [[k v :as entry]]
+                           (if (set? v)
+                             [k (disj v lu)]
+                             (if (= v lu) nil entry)))
+                      entity)))
+      data))))
+
 (defn- delete-entity
   "Delete the given entity from the data store"
   [data entity adapter]
@@ -194,7 +221,10 @@
         components (map (fn [[attr val]]
                           (find-entity data attr val))
                         component-lookups)]
-    (reduce delete-entity (disj data entity) components)))
+    (reduce delete-entity (-> data
+                            (disj entity)
+                            (remove-entity-references entity adapter))
+      components)))
 
 (defn delete-entity-op
   ([adapter op-type lookup]
@@ -229,6 +259,11 @@
           (fn [data] (delete-attr-op adapter op-type payload data)))
    true)
   ([adapter op-type [lookup attr] data]
+   (when (adapter/key? adapter attr)
+     (error ::cho/cannot-delete-key-attr {:lookup lookup
+                                          :attribute attr
+                                          :adapter-eid (:db/id adapter)
+                                          :adapter-aid (:arachne/id adapter)}))
    (let [entity (find-entity data lookup)]
      (if entity
        (update data :data delete-attr entity attr adapter)

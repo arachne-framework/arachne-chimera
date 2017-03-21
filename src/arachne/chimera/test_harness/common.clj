@@ -16,7 +16,11 @@
                 [:test/m1]
                 (ch/attr :test.person/dob :test/Person :instant :min dob-min-card :max 1)
                 (ch/attr :test.person/friends :test/Person :ref :test/Person :min 0)
-                (ch/attr :test.person/address :test/Person :component :test/Address :min 0)
+                (ch/attr :test.person/best-friend :test/Person :ref :test/Person :min 0 :max 1)
+
+                (ch/attr :test.person/addresses :test/Person :component :test/Address :min 0)
+                (ch/attr :test.person/primary-address :test/Person :component :test/Address :min 0 :max 1)
+
                 (ch/attr :test.address/street :test/Address :string :min 1 :max 1)
                 )
 
