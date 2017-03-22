@@ -69,7 +69,8 @@
             :max {:chimera.attribute/max-cardinality val}
             :prim {:chimera.attribute/range (primitive-type v)}
             :ref {:chimera.attribute/range val}
-            :component {:chimera.attribute/range val}
+            :component {:chimera.attribute/range val
+                        :chimera.attribute/component true}
             :index {:chimera.attribute/indexed true}
             :key {:chimera.attribute/key true})]
     (merge attr-map m)))

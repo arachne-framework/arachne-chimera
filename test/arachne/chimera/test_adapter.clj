@@ -93,7 +93,6 @@
    (find-entity data (:attribute lookup) (:value lookup)))
   ([data attr value]
    (->> data
-        :data
         (filter #(= value (get % attr)))
         first)))
 
@@ -139,7 +138,7 @@
                   :adapter-eid (:db/id adapter)
                   :adapter-aid (:arachne/id adapter)}))
         (doseq [lu (if card-many? value [value])]
-          (when-not (find-entity data lu)
+          (when-not (find-entity (:data data) lu)
             (error ::cho/entity-does-not-exist
                    {:lookup [(:attribute lu) (:value lu)]
                     :op op
@@ -155,7 +154,7 @@
    true)
   ([adapter _ emap data]
    (let [[k v] (entity-map-lookup adapter emap :chimera.operation/put)
-         existing (when k (find-entity data k v))]
+         existing (when k (find-entity (:data data) k v))]
      (if existing
        (error ::cho/entity-already-exists
               {:lookup [k v]
@@ -188,7 +187,7 @@
    true)
   ([adapter op-type emap data]
    (let [[k v] (entity-map-lookup adapter emap :chimera.operation/update)
-         existing (when k (find-entity data k v))]
+         existing (when k (find-entity (:data data) k v))]
      (if existing
        (do
          (ensure-ref-values adapter :chimera.operation/update data emap)
@@ -218,12 +217,14 @@
                                     (when (adapter/component? adapter k)
                                       (if (set? v) v #{v})))
                                 entity)
-        components (map (fn [[attr val]]
-                          (find-entity data attr val))
+        components (map (fn [lookup]
+                          (find-entity data lookup))
                         component-lookups)]
-    (reduce delete-entity (-> data
-                            (disj entity)
-                            (remove-entity-references entity adapter))
+    (reduce (fn [data entity]
+              (delete-entity data entity adapter))
+      (-> data
+        (disj entity)
+        (remove-entity-references entity adapter))
       components)))
 
 (defn delete-entity-op
@@ -232,7 +233,7 @@
           (fn [data] (delete-entity-op adapter op-type lookup data)))
    true)
   ([adapter op-type lookup data]
-   (let [entity (find-entity data lookup)]
+   (let [entity (find-entity (:data data) lookup)]
      (if entity
        (update data :data delete-entity entity adapter)
        (error ::cho/entity-does-not-exist
@@ -246,10 +247,13 @@
   (let [new-entity (dissoc entity attr)
         new-data (conj (disj data entity) new-entity)
         cleaned-data (if (and (not= entity new-entity) (adapter/component? adapter attr))
-                       (reduce (fn [data to-remove]
-                                 (delete-entity data (find-entity data to-remove) adapter))
-                               new-data
-                               (get entity attr))
+                       (let [entities-to-remove (if (adapter/cardinality-many? adapter attr)
+                                         (get entity attr)
+                                         [(get entity attr)])]
+                         (reduce (fn [data to-remove]
+                                   (delete-entity data (find-entity data to-remove) adapter))
+                           new-data
+                           entities-to-remove))
                        new-data)]
     cleaned-data))
 
@@ -264,7 +268,7 @@
                                           :attribute attr
                                           :adapter-eid (:db/id adapter)
                                           :adapter-aid (:arachne/id adapter)}))
-   (let [entity (find-entity data lookup)]
+   (let [entity (find-entity (:data data) lookup)]
      (if entity
        (update data :data delete-attr entity attr adapter)
        (error ::cho/entity-does-not-exist
@@ -296,7 +300,7 @@
           (fn [data] (delete-attr-value-op adapter op-type payload data)))
    true)
   ([adapter op-type [lookup attr value] data]
-   (let [entity (find-entity data lookup)]
+   (let [entity (find-entity (:data data) lookup)]
      (if entity
        (update data :data delete-attr-value entity attr value adapter)
        (error ::cho/entity-does-not-exist
@@ -305,9 +309,28 @@
                :adapter-eid (:db/id adapter)
                :adapter-aid (:arachne/id adapter)})))))
 
+(defn- realize-components
+  "Given an entity map, recursively replace all component lookups with entity maps"
+  [adapter data entity]
+  (let [realize-component (fn [lookup]
+                            (realize-components adapter data
+                              (find-entity data (:attribute lookup) (:value lookup))))
+        entries (map (fn [[k v]]
+                       (if (adapter/component? adapter k)
+                         (if (adapter/cardinality-many? adapter k)
+                           [k (set (map realize-component v))]
+                           [k (realize-component v)])
+                         [k v]))
+                  entity)]
+
+    (when (seq entries)
+      (into {} entries))))
+
 (defn get-op
   [adapter _ lookup]
-  (find-entity @(datastore adapter) (:attribute lookup) (:value lookup)))
+  (let [ds @(datastore adapter)]
+    (let [entity (find-entity (:data ds) (:attribute lookup) (:value lookup))]
+      (realize-components adapter (:data ds) entity))))
 
 (defn init-op
   [adapter _ _]
@@ -356,13 +379,3 @@
            (reduce (fn [data [op-type payload]]
                      (chimera/operate adapter op-type payload data))
                    data payload))))
-
-(comment
-  ;;; Example DB
-  {
-   :migrations {:test/m1 ["abcdef" 1023402342423]}
-   :data #{{:foo/bar 3}
-           {:foo/bar 2}}
-   }
-
-  )

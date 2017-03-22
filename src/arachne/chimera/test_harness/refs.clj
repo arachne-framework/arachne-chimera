@@ -81,25 +81,86 @@
         adapter (rt/lookup rt [:arachne/id :test/adapter])]
 
     (let [james (UUID/randomUUID)
-          mary (UUID/randomUUID)
-          elizabeth (UUID/randomUUID)]
+          detail1 (UUID/randomUUID)
+          detail2 (UUID/randomUUID)
+          address1 (UUID/randomUUID)
+          address2 (UUID/randomUUID)
+          address3 (UUID/randomUUID)]
 
-      (testing "Components can be set as nested entities"
-        (chimera/operate adapter :chimera.operation/put
-          {:test.person/id james
-           :test.person/primary-address {:test.address/street "Buckingham"}})
+      (testing "Components are returned as nested maps"
+        (chimera/operate adapter :chimera.operation/batch
+          [[:chimera.operation/put {:test.address-detail/id detail1
+                                    :test.address-detail/note "Some notes"}]
+           [:chimera.operation/put {:test.address-detail/id detail2
+                                    :test.address-detail/note "Some other notes"}]
+           [:chimera.operation/put {:test.address/id address1
+                                    :test.address/street "Street 1"
+                                    :test.address/detail #{(chimera/lookup :test.address-detail/id detail1)}}]
+           [:chimera.operation/put {:test.address/id address2
+                                    :test.address/street "Street 2"
+                                    :test.address/detail #{(chimera/lookup :test.address-detail/id detail2)}}]
+           [:chimera.operation/put {:test.address/id address3
+                                    :test.address/street "Street 3"}]
+           [:chimera.operation/put {:test.person/id james
+                                    :test.person/primary-address (chimera/lookup :test.address/id address1)
+                                    :test.person/addresses #{(chimera/lookup :test.address/id address2)
+                                                             (chimera/lookup :test.address/id address3)}}]])
 
-        #_(is (= {:test.person/id james
-                :test.person/primary-address {:test.address/street "Buckingham"}}
+        (is (= {:test.person/id james
+                :test.person/primary-address {:test.address/id address1
+                                              :test.address/street "Street 1"
+                                              :test.address/detail #{{:test.address-detail/id detail1
+                                                                      :test.address-detail/note "Some notes"}}}
+                :test.person/addresses #{{:test.address/id address2
+                                          :test.address/street "Street 2"
+                                          :test.address/detail #{{:test.address-detail/id detail2
+                                                                  :test.address-detail/note "Some other notes"}}}
+                                         {:test.address/id address3
+                                          :test.address/street "Street 3"}}}
               (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))
 
+        (is (= {:test.address/id address1
+                :test.address/street "Street 1"
+                :test.address/detail #{{:test.address-detail/id detail1
+                                        :test.address-detail/note "Some notes"}}}
+              (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address/id address1))))
+
+        (is (= {:test.address/id address2
+                :test.address/street "Street 2"
+                :test.address/detail #{{:test.address-detail/id detail2
+                                        :test.address-detail/note "Some other notes"}}}
+              (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address/id address2))))
+
+        (is (= {:test.address-detail/id detail1
+                :test.address-detail/note "Some notes"}
+              (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address-detail/id detail1))))
+
+        (is (= {:test.address-detail/id detail2
+                :test.address-detail/note "Some other notes"}
+              (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address-detail/id detail2)))))
 
 
-        )
+      (testing "Deletes are recursive"
+        (chimera/operate adapter :chimera.operation/delete [(chimera/lookup :test.person/id james) :test.person/primary-address])
 
+        (is (= {:test.person/id james
+                :test.person/addresses #{{:test.address/id address2
+                                          :test.address/street "Street 2"
+                                          :test.address/detail #{{:test.address-detail/id detail2
+                                                                  :test.address-detail/note "Some other notes"}}}
+                                         {:test.address/id address3
+                                          :test.address/street "Street 3"}}}
+              (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))
 
+        (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address/id address1))))
+        (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address-detail/id detail1))))
 
-      )))
+        (chimera/operate adapter :chimera.operation/delete-entity (chimera/lookup :test.person/id james))
+
+        (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))
+        (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address/id address2))))
+        (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address/id address3))))
+        (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address-detail/id detail2))))))))
 
 (comment
 
