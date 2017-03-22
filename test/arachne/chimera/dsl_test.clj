@@ -8,17 +8,17 @@
             [arachne.core.dsl :as a]
             [arachne.chimera.dsl :as c]))
 
-[(defn basic-dsl-cfg
-   []
+(defn basic-dsl-cfg
+  []
 
-   (a/id :test/rt (a/runtime [(a/component 'clojure.core/hash-map)]))
+  (a/id :test/rt (a/runtime [(a/component 'clojure.core/hash-map)]))
 
-   (c/migration :test/m1
-     "test migration"
-     []
+  (c/migration :test/m1
+    "test migration"
+    []
 
-     (c/attr :test/attr :test/TypeA :string :min 1)
-     (c/attr :test/attr :test/TypeB :ref :test/TypeA :min 1 :max 1)))]
+    (c/attr :test/attr :test/TypeA :string :min 1)
+    (c/attr :test/attr :test/TypeB :ref :test/TypeA :min 1 :max 1)))
 
 (deftest basic-dsl
   (let [cfg (core/build-config '[:org.arachne-framework/arachne-chimera]
