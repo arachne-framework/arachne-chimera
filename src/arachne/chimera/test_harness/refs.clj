@@ -9,9 +9,8 @@
            [arachne ArachneException]))
 
 (defn basic-ref-operations
-  [adapter-dsl-fn]
-  (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
-                               `(common/config 0 ~adapter-dsl-fn))
+  [adapter-dsl-fn modules]
+  (let [cfg (core/build-config modules `(common/config 0 ~adapter-dsl-fn))
         rt (rt/init cfg [:arachne/id :test/rt])
         rt (component/start rt)
         adapter (rt/lookup rt [:arachne/id :test/adapter])]
@@ -73,9 +72,8 @@
       )))
 
 (defn component-operations
-  [adapter-dsl-fn]
-  (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
-              `(common/config 0 ~adapter-dsl-fn))
+  [adapter-dsl-fn modules]
+  (let [cfg (core/build-config modules `(common/config 0 ~adapter-dsl-fn))
         rt (rt/init cfg [:arachne/id :test/rt])
         rt (component/start rt)
         adapter (rt/lookup rt [:arachne/id :test/adapter])]
@@ -162,33 +160,7 @@
         (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address/id address3))))
         (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.address-detail/id detail2))))))))
 
-(comment
-
-  (require '[clojure.spec :as s])
-
-  (def james (UUID/randomUUID))
-  (def emap {:test.person/id james
-             :test.person/primary-address {:test.address/street "Buckingham"}})
-
-  (s/conform :chimera/entity-map emap)
-
-
-  )
-
-
 (defn exercise-all
-  [adapter-dsl-fn]
-  (basic-ref-operations adapter-dsl-fn)
-  (component-operations adapter-dsl-fn))
-
-(comment
-
- (require '[arachne.chimera.test-adapter])
-
- (test/deftest run
-   (exercise-all arachne.chimera.test-adapter/test-adapter))
-
- )
-
-
-
+  [adapter-dsl-fn modules]
+  (basic-ref-operations adapter-dsl-fn modules)
+  (component-operations adapter-dsl-fn modules))

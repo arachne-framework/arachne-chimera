@@ -21,9 +21,8 @@
            [?ap :chimera.adapter.capability/atomic? true]]))
 
 (defn exercise
-  [adapter-dsl-fn]
-  (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
-                               `(common/config 0 ~adapter-dsl-fn))
+  [adapter-dsl-fn modules]
+  (let [cfg (core/build-config modules `(common/config 0 ~adapter-dsl-fn))
         rt (core/runtime cfg :test/rt)
         rt (component/start rt)]
     (chimera/ensure-migrations rt [:arachne/id :test/adapter])

@@ -9,9 +9,8 @@
            [arachne ArachneException]))
 
 (defn bad-operations
-  [adapter-dsl-fn]
-  (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
-                               `(common/config 0 ~adapter-dsl-fn))
+  [adapter-dsl-fn modules]
+  (let [cfg (core/build-config modules `(common/config 0 ~adapter-dsl-fn))
         rt (rt/init cfg [:arachne/id :test/rt])
         rt (component/start rt)
         adapter (rt/lookup rt [:arachne/id :test/adapter])]
@@ -23,9 +22,8 @@
                           (chimera/operate adapter :chimera.operation/initialize-migrations false)))))
 
 (defn simple-crud
-  [adapter-dsl-fn]
-  (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
-                               `(common/config 0 ~adapter-dsl-fn))
+  [adapter-dsl-fn modules]
+  (let [cfg (core/build-config modules `(common/config 0 ~adapter-dsl-fn))
         rt (rt/init cfg [:arachne/id :test/rt])
         rt (component/start rt)
         adapter (rt/lookup rt [:arachne/id :test/adapter])]
@@ -89,9 +87,8 @@
                                                (chimera/lookup :test.person/id james))))))))
 
 (defn delete-attributes
-  [adapter-dsl-fn]
-  (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
-                               `(common/config 0 ~adapter-dsl-fn))
+  [adapter-dsl-fn modules]
+  (let [cfg (core/build-config modules `(common/config 0 ~adapter-dsl-fn))
         rt (rt/init cfg [:arachne/id :test/rt])
         rt (component/start rt)
         adapter (rt/lookup rt [:arachne/id :test/adapter])]
@@ -131,22 +128,8 @@
         ))))
 
 (defn exercise-all
-  [adapter-dsl-fn]
-  (bad-operations adapter-dsl-fn)
-  (simple-crud adapter-dsl-fn)
-  (delete-attributes adapter-dsl-fn)
-  )
-
-
-
-(comment
-
-  (require '[arachne.chimera.test-adapter])
-
-  (test/deftest run
-    (exercise-all arachne.chimera.test-adapter/test-adapter))
-
-  )
-
-
+  [adapter-dsl-fn modules]
+  (bad-operations adapter-dsl-fn modules)
+  (simple-crud adapter-dsl-fn modules)
+  (delete-attributes adapter-dsl-fn modules))
 

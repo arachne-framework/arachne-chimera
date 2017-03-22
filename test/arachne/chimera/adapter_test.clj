@@ -19,7 +19,7 @@
            (java.util UUID Date)))
 
 (deftest test-harness
-  (harness/exercise-all ta/test-adapter))
+  (harness/exercise-all ta/test-adapter [:org.arachne-framework/arachne-chimera]))
 
 (defn config
   "DSL function to build a test config"
