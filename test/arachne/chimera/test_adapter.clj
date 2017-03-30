@@ -9,8 +9,6 @@
             [clojure.set :as set]
             [arachne.chimera.operation :as cho]))
 
-(s/def :test.operation/foo any?)
-
 (def ^:dynamic *global-data*)
 
 (defn atom-store-ctor
@@ -33,9 +31,6 @@
         [(util/mkeep
           {:db/id atomstore-tid
            :arachne.component/constructor ::atom-store-ctor})
-         {:chimera.operation/type :test.operation/foo
-          :chimera.operation/idempotent? false
-          :chimera.operation/batchable? false}
          {:db/id tid
           :arachne.component/dependencies [{:arachne.component.dependency/key :atom
                                             :arachne.component.dependency/entity atomstore-tid}]
@@ -48,8 +43,7 @@
                                                          :chimera.operation/update
                                                          :chimera.operation/delete
                                                          :chimera.operation/delete-entity
-                                                         :chimera.operation/batch
-                                                         :test.operation/foo])
+                                                         :chimera.operation/batch])
           :chimera.adapter/dispatches [{:chimera.adapter.dispatch/index 0,
                                         :chimera.adapter.dispatch/pattern "_"
                                         :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/initialize-migrations}

@@ -1,6 +1,9 @@
 (ns arachne.chimera.test-harness.common
   (:require [arachne.core.dsl :as a]
-            [arachne.chimera.dsl :as ch]))
+            [arachne.chimera.dsl :as ch]
+            [clojure.spec :as s]))
+
+(s/def :test.operation/foo any?)
 
 (defn config
   "DSL function to build a test config"
@@ -32,5 +35,12 @@
     )
 
   (a/id :test/adapter (test-adapter-fn :test/m2))
+
+  (a/transact [{:chimera.operation/type :test.operation/foo
+                :chimera.operation/idempotent? false
+                :chimera.operation/batchable? false}
+               {:arachne/id :test/adapter
+                :chimera.adapter/capabilities [{:chimera.adapter.capability/operation {:chimera.operation/type :test.operation/foo}
+                                                :chimera.adapter.capability/atomic? true}]}])
 
   (a/id :test/rt (a/runtime [:test/adapter])))
