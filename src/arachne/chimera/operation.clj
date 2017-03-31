@@ -7,9 +7,19 @@
 
 (s/def :chimera.operation/initialize-migrations #{true})
 
+
+(s/cat :signature string?
+  :migration map?)
+
+(s/def :chimera.operation.migration/signature string?)
+(s/def :chimera.operation.migration/name qualified-keyword?)
+(s/def :chimera.operation.migration/operations
+  (s/coll-of map?))
+
 (s/def :chimera.operation/migrate
-  (s/cat :signature string?
-         :migration map?))
+  (s/keys :req-un [:chimera.operation.migration/signature
+                   :chimera.operation.migraiton/name
+                   :chimera.operation.migration/operations]))
 
 (s/def :chimera.operation/put :chimera/entity-map)
 (s/def :chimera.operation/get :chimera/lookup)

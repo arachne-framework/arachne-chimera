@@ -31,6 +31,8 @@
     (let [james (UUID/randomUUID)
           mary (UUID/randomUUID)]
 
+      (chimera/ensure-migrations rt [:arachne/id :test/adapter])
+
       (testing "testing basic put/get"
         (chimera/operate adapter :chimera.operation/put {:test.person/id james
                                                          :test.person/name "James"})

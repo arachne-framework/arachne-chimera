@@ -79,6 +79,14 @@
                                                  :op-payload payload})
      (adapter/operate- adapter type payload batch-context))))
 
+(defn- migration-operations
+  "Given a migration entity map, return a sequence of the migration operations"
+  [migration]
+  (map #(dissoc % :chimera.migration.operation/next)
+    (take-while identity
+      (iterate :chimera.migration.operation/next
+        (:chimera.migration/operation migration)))))
+
 (defn ensure-migrations
   "Given a config and a lookup for an adapter, ensure that all the adapter's
    migrations have been applied, applying any that have not."
@@ -91,7 +99,10 @@
     (let [migration-eids (migration/migrations cfg (:db/id adapter))
           migrations (map #(migration/canonical-migration cfg %) migration-eids)]
       (doseq [migration migrations]
-        (operate adapter :chimera.operation/migrate [(vh/md5-str migration) migration])))))
+        (operate adapter :chimera.operation/migrate
+          {:signature (vh/md5-str migration)
+           :name (:chimera.migration/name migration)
+           :operations (migration-operations migration)})))))
 
 
 (defrecord Lookup [attribute value])

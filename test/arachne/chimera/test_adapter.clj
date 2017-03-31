@@ -331,40 +331,21 @@
   true)
 
 (defn migrate-op
-  [adapter _ [signature migration]]
-  (let [name (:chimera.migration/name migration)]
-    (swap! (datastore adapter) update-in [:migrations name]
-      (fn [[original-sig date]]
-        (if original-sig
-          (if (= original-sig signature)
-            [original-sig date]
-            (error :arachne.chimera.migration/invalid-signature
-                   {:name name
-                    :adapter-eid (:db/id adapter)
-                    :adapter-aid (:arachne/id adapter)
-                    :original-time date
-                    :original-time-str (err/format-date date)
-                    :original original-sig
-                    :new signature}))
-          [signature (java.util.Date.)])))))
-
-(defn migrate-op
-  [adapter _ [signature migration]]
-  (let [name (:chimera.migration/name migration)]
-    (swap! (datastore adapter) update-in [:migrations name]
-           (fn [[original-sig date]]
-             (if original-sig
-               (if (= original-sig signature)
-                 [original-sig date]
-                 (error :arachne.chimera.migration/invalid-signature
-                        {:name name
-                         :adapter-eid (:db/id adapter)
-                         :adapter-aid (:arachne/id adapter)
-                         :original-time date
-                         :original-time-str (err/format-date date)
-                         :original original-sig
-                         :new signature}))
-               [signature (java.util.Date.)])))))
+  [adapter _ {:keys [signature name operations]}]
+  (swap! (datastore adapter) update-in [:migrations name]
+    (fn [[original-sig date]]
+      (if original-sig
+        (if (= original-sig signature)
+          [original-sig date]
+          (error :arachne.chimera.migration/invalid-signature
+            {:name name
+             :adapter-eid (:db/id adapter)
+             :adapter-aid (:arachne/id adapter)
+             :original-time date
+             :original-time-str (err/format-date date)
+             :original original-sig
+             :new signature}))
+        [signature (java.util.Date.)]))))
 
 (defn batch-op
   [adapter _ payload]
