@@ -9,6 +9,8 @@
             [arachne.chimera.dsl :as c]
             ))
 
+(arachne.error/explain-test-errors!)
+
 (defn migration-rollups-cfg
   []
   (a/id :test/rt (a/runtime [(a/component 'clojure.core/hash-map)]))

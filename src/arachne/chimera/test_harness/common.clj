@@ -3,7 +3,11 @@
             [arachne.chimera.dsl :as ch]
             [clojure.spec :as s]))
 
-(s/def :test.operation/foo any?)
+(s/def :test.operation/foo
+  (s/fspec :args (s/cat :adapter :chimera/adapter
+                        :operation #{:test.operation/foo}
+                        :payload any?)
+           :ret any?))
 
 (defn config
   "DSL function to build a test config"

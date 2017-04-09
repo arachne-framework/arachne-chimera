@@ -28,7 +28,7 @@
 
     (m/type :chimera.adapter/Dispatch []
       "Information used to dispatch operations to this adapter"
-      (m/attr :chimera.adapter.dispatch/operation :one :ref :chiemra/Operation
+      (m/attr :chimera.adapter.dispatch/operation :one :ref :chimera/Operation
         "The operation that this dispatch function supports")
       (m/attr :chimera.adapter.dispatch/index :one :long
         "Index of this dispatch option, used to calculate priority relative to other dispatches.")

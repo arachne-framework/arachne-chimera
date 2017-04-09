@@ -8,6 +8,8 @@
             [arachne.core.dsl :as a]
             [arachne.chimera.dsl :as c]))
 
+(arachne.error/explain-test-errors!)
+
 (defn basic-dsl-cfg
   []
 

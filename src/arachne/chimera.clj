@@ -28,18 +28,21 @@
     (migration/ensure-migration-models)))
 
 (deferror ::missing-op-spec
-  :message "No spec found for operation type `:op-type`"
-  :explanation "A Chimera operation could not be validated using Spec, because no spec could be found for the operation type `:op-type`"
+  :message "No function spec found for operation type `:op-type`"
+  :explanation "A Chimera operation could not be validated using Spec, because no spec could be found for the operation type `:op-type`.
+
+  Chimera expects that every operation type have a function spec registered, with both `:args` and `:ret`. This spec should define the behavior of the `arachne.chimera/operate` function for that operation type. "
   :suggestions ["Ensure that the type `:op-type` is correct and typo-free."
-                "If you are a module author, confirm that your module registers a spec for `:op-type`"]
+                "If you are a module author, confirm that your module registers a spec for `:op-type`"
+                "Ensure that the spec is a valid function spec."]
   :ex-data-docs {:op-type "The Chimera operation type"})
 
 (deferror ::failed-op-spec
   :message "Operation data for `:op-type` did not conform to operation spec"
-  :explanation "The system attempted to call a Chimera operation of type `:op-type`. However, the payload data that was passed to the operation failed to conform to the spec that had been registered for `:op-type`."
-  :suggestions ["Ensure that the operation's payload data conforms to the declared specification."]
-  :ex-data-docs {:op-type "The Chimera operation type"
-                 :op-payload "The payload data that failed to conform to the spec"})
+  :explanation "The system attempted to call a Chimera operation of type `:op-type`. However, the data that was passed to the `operate` function failed to conform to the spec that had been registered for `:op-type`."
+  :suggestions ["Ensure that the operation's payload data conforms to the declared specification."
+                "Ensure that the other arguments to the `operate` function are correct."]
+  :ex-data-docs {:op-type "The Chimera operation type"})
 
 (defn ^:no-doc adapter? [obj] (satisfies? adapter/Adapter obj))
 
@@ -51,33 +54,75 @@
   :ex-data-docs {:rt "The runtime"
                  :lookup "Lookup expression for the adapter"})
 
+(deferror ::failed-result-spec
+  :message "Operation `:op-type` returned an invalid result."
+  :explanation "The result of an `:op-type` operation did not match the operation's defined spec.
+
+  The adapter was `:adapter-eid` (AID: `:adapter-aid`).
+
+  This check was performed because the `arachne.chimera/*validate-operation-results*` dynamic var was set to true."
+  :suggestions ["Fix the operation implementation in the given adapter"]
+  :ex-data-docs {:op-type "Operation type"
+                 :adapter-aid "Adapter Arachne ID"
+                 :adapter-eid "Adapter Entity ID"})
+
 (s/fdef operate
         :args (s/cat :adapter adapter?
                      :type :chimera/operation-type
                      :payload :chimera/operation-payload
                      :batch-context (s/? any?)))
 
+(def ^:dynamic *validate-operation-results*
+  "Bind to true to validate the data returned by operations against the
+   operation spec. Useful mostly for testing of adapters."
+  false)
+
+(defn- conform-operation
+  [& args]
+  (let [op-type (second args)
+        op-spec (s/get-spec op-type)]
+    (when-not (:args op-spec) (error ::missing-op-spec {:op-type op-type}))
+
+    (e/conform (:args op-spec) args ::failed-op-spec {:op-type op-type})))
+
 (defn operate
-  "Apply a Chimera operation to an adapter, first validating the operation.
+  "Send a Chimera operation to an adapter, first validating the operation.
 
-  Optionally takes a fourth argument,the batch context of the current batch operation."
+  The return value is the result of the operation. See the operation
+  specification for what this entails.
+
+  Optionally takes a fourth argument, the context of the operation. The
+  context is an implementation-dependent value which is used when composing
+  operations (such as batches or migrations.
+
+  Some operations always require a context, some never do, and some may be
+  called with or without one. See the operation specification for details."
   ([adapter type payload]
-   (e/assert-args `operate adapter type payload)
    (adapter/assert-operation-support adapter type false)
-   (let [op-spec (s/get-spec type)]
-     (when-not op-spec (error ::missing-op-spec {:op-type type}))
-     (e/assert op-spec payload ::failed-op-spec {:op-type type
-                                                 :op-payload payload})
-     (adapter/operate- adapter type payload)))
+   (let [conformed (conform-operation adapter type payload)
+         payload (if (instance? clojure.lang.IObj payload)
+                   (vary-meta payload assoc ::conformed (:payload conformed))
+                   payload)
+         result (adapter/operate- adapter type payload)]
+     (when *validate-operation-results*
+       (e/assert (:ret (s/get-spec type)) result
+         ::failed-result-spec {:op-type type
+                               :adapter-eid (:db/id adapter)
+                               :adapter-aid (:arachne/id adapter)}))
+     result))
 
-  ([adapter type payload batch-context]
-   (e/assert-args `operate adapter type payload batch-context)
+  ([adapter type payload context]
    (adapter/assert-operation-support adapter type true)
-   (let [op-spec (s/get-spec type)]
-     (when-not op-spec (error ::missing-op-spec {:op-type type}))
-     (e/assert op-spec payload ::failed-op-spec {:op-type type
-                                                 :op-payload payload})
-     (adapter/operate- adapter type payload batch-context))))
+   (let [conformed (conform-operation adapter type payload context)
+         result (adapter/operate- adapter type
+                  (vary-meta payload assoc ::conformed (:payload conformed))
+                  context)]
+     (when *validate-operation-results*
+       (e/assert (:ret (s/get-spec type)) result
+         ::failed-result-spec {:op-type type
+                               :adapter-eid (:db/id adapter)
+                               :adapter-aid (:arachne/id adapter)}))
+     result)))
 
 (defn- migration-operations
   "Given a migration entity map, return a sequence of the migration operations"

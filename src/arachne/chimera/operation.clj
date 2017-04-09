@@ -5,35 +5,72 @@
             [arachne.error :refer [error deferror]]
             [clojure.spec :as s]))
 
-(s/def :chimera.operation/initialize-migrations #{true})
-
-
-(s/cat :signature string?
-  :migration map?)
+(s/def :chimera.operation/initialize-migrations
+  (s/fspec :args (s/cat :adapter :chimera/adapter
+                        :op #{:chimera.operation/initialize-migrations}
+                        :payload #{true})
+           :ret boolean?))
 
 (s/def :chimera.operation.migration/signature string?)
 (s/def :chimera.operation.migration/name qualified-keyword?)
 (s/def :chimera.operation.migration/operations
   (s/coll-of map?))
 
+
 (s/def :chimera.operation/migrate
-  (s/keys :req-un [:chimera.operation.migration/signature
-                   :chimera.operation.migraiton/name
-                   :chimera.operation.migration/operations]))
+  (s/fspec :args (s/cat :adapter :chimera/adapter
+                        :op #{:chimera.operation/migrate}
+                        :payload (s/keys :req-un [:chimera.operation.migration/signature
+                                                  :chimera.operation.migraiton/name
+                                                  :chimera.operation.migration/operations]))
+           :ret boolean?))
 
-(s/def :chimera.operation/put :chimera/entity-map)
-(s/def :chimera.operation/get :chimera/lookup)
-(s/def :chimera.operation/update :chimera/entity-map)
-(s/def :chimera.operation/delete-entity :chimera/lookup)
+(s/def :chimera.operation/put
+  (s/fspec :args (s/cat :adapter :chimera/adapter
+                        :op #{:chimera.operation/put}
+                        :payload :chimera/entity-map
+                        :context (s/? any?))
+           :ret true?))
 
-(s/def :chimera.operation/delete (s/cat :entity :chimera/lookup
+(s/def :chimera.operation/get
+  (s/fspec :args (s/cat :adapter :chimera/adapter
+                        :op #{:chimera.operation/get}
+                        :payload :chimera/lookup)
+    :ret :chimera/entity-map))
+
+(s/def :chimera.operation/update
+  (s/fspec :args (s/cat :adapter :chimera/adapter
+                        :op #{:chimera.operation/update}
+                        :payload :chimera/entity-map
+                        :context (s/? any?))
+    :ret true?))
+
+(s/def :chimera.operation/delete-entity
+  (s/fspec :args (s/cat :adapter :chimera/adapter
+                        :op #{:chimera.operation/delete-entity}
+                        :payload :chimera/lookup
+                        :context (s/? any?))
+    :ret boolean?))
+
+(s/def :chimera.operation/delete
+  (s/fspec :args (s/cat :adapter :chimera/adapter
+                        :op #{:chimera.operation/delete}
+                        :payload (s/and vector?
+                                   (s/cat :entity :chimera/lookup
                                         :attribute :chimera.attribute/name
                                         :value (s/? (s/or :primitive :chimera/primitive
-                                                          :ref :chimera/lookup))))
+                                                           :ref :chimera/lookup))))
+                   :context (s/? any?))
+           :ret boolean?))
 
-(s/def :chimera.operation/batch (s/coll-of
-                                 (s/tuple :chimera/operation-type any?)
-                                 :min-count 1))
+(s/def :chimera.operation/batch
+  (s/fspec :args (s/cat :adapter :chimera/adapter
+                        :op #{:chimera.operation/batch}
+                        :payload (s/coll-of
+                                   (s/tuple :chimera/operation-type any?)
+                                   :min-count 1))
+    :ret boolean?))
+
 
 (def operations
   [{:chimera.operation/type :chimera.operation/initialize-migrations

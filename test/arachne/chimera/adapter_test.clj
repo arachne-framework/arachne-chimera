@@ -18,6 +18,8 @@
   (:import [arachne ArachneException]
            (java.util UUID Date)))
 
+(arachne.error/explain-test-errors!)
+
 (deftest test-harness
   (harness/exercise-all ta/test-adapter [:org.arachne-framework/arachne-chimera]))
 

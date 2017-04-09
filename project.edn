@@ -3,7 +3,7 @@
  :description "Data abstraction module for the Arachne Framework"
  :license {"Apache Software License 2.0" "http://www.apache.org/licenses/LICENSE-2.0"}
  :deps [[org.clojure/clojure "1.9.0-alpha14" :scope "provided"]
-        [org.arachne-framework/arachne-core "0.2.0-master-0095-ebcb5e9"]
+        [org.arachne-framework/arachne-core "0.2.0-master-0097-d1fe29d"]
         [org.arachne-framework/valuehash "0.1.0"]
         [org.clojure/core.match "0.3.0-alpha4"
          :exclusions [org.clojure/clojure

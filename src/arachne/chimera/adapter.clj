@@ -1,6 +1,7 @@
 (ns arachne.chimera.adapter
   (:require [clojure.spec :as s]
             [clojure.core.match :as m]
+            [clojure.pprint :as pprint]
             [arachne.error :as e :refer [deferror error]]
             [arachne.error.format :as efmt]
             [clojure.string :as str]
@@ -22,7 +23,23 @@
   (operate- [this operation-type payload]
     (dispatch this operation-type payload))
   (operate- [this operation-type payload batch-context]
-    (dispatch this operation-type payload batch-context)))
+    (dispatch this operation-type payload batch-context))
+  Object
+  (toString [this]
+    (str "#ChimeraAdapter[" (:db/id this) (when (:arachne/id this)
+                                            (str " " (:arachne/id this))) "]")))
+
+(defmethod print-method ChimeraAdapter
+  [v ^java.io.Writer w]
+  (.write w (.toString v)))
+
+(defmethod pprint/simple-dispatch ChimeraAdapter
+  [cfg]
+  (pr cfg))
+
+(prefer-method pprint/simple-dispatch
+  arachne.chimera.adapter.ChimeraAdapter
+  clojure.lang.IPersistentMap)
 
 (deferror ::missing-dispatch
   :message "Unknown dispatch operation `:op` for adapter `:adapter-eid` (Arachne ID: `:adapter-aid`)"
