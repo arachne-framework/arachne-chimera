@@ -56,7 +56,7 @@
                         :op #{:chimera.operation/get}
                         :payload :chimera/lookup)
            :ret (s/or :no-result nil?
-                      :result :chimera/entity-map)))
+                      :result :chimera/entity-map-with-components)))
 
 (s/def :chimera.operation/update
   (s/fspec :args (s/cat :adapter :chimera/adapter
