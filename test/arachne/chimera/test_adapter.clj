@@ -225,7 +225,7 @@
   ([adapter op-type lookup]
    (swap! (datastore adapter)
           (fn [data] (delete-entity-op adapter op-type lookup data)))
-   true)
+   nil)
   ([adapter op-type lookup data]
    (let [entity (find-entity (:data data) lookup)]
      (if entity
@@ -255,7 +255,7 @@
   ([adapter op-type payload]
    (swap! (datastore adapter)
           (fn [data] (delete-attr-op adapter op-type payload data)))
-   true)
+   nil)
   ([adapter op-type [lookup attr] data]
    (when (adapter/key? adapter attr)
      (error ::cho/cannot-delete-key-attr {:lookup lookup
@@ -345,7 +345,8 @@
              :original-time-str (err/format-date date)
              :original original-sig
              :new signature}))
-        [signature (java.util.Date.)]))))
+        [signature (java.util.Date.)])))
+  nil)
 
 (defn batch-op
   [adapter _ payload]
@@ -353,4 +354,5 @@
          (fn [data]
            (reduce (fn [data [op-type payload]]
                      (chimera/operate adapter op-type payload data))
-                   data payload))))
+                   data payload)))
+  nil)

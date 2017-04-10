@@ -33,11 +33,11 @@
                                                 :test.person/friends #{(chimera/lookup [:test.person/id mary])}}))))
 
       (testing "can create refs to elements in the same batch"
-        (is (chimera/operate adapter :chimera.operation/batch
-                             [[:chimera.operation/put {:test.person/id mary
-                                                       :test.person/name "Mary"}]
-                              [:chimera.operation/update {:test.person/id james
-                                                          :test.person/friends #{(chimera/lookup [:test.person/id mary])}}]])))
+        (is (nil? (chimera/operate adapter :chimera.operation/batch
+                    [[:chimera.operation/put {:test.person/id mary
+                                              :test.person/name "Mary"}]
+                     [:chimera.operation/update {:test.person/id james
+                                                 :test.person/friends #{(chimera/lookup [:test.person/id mary])}}]]))))
 
       (testing "can't set cardinality-many refs using single value"
         (is (thrown-with-msg? ArachneException #"be a set"

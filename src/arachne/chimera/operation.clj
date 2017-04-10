@@ -5,6 +5,16 @@
             [arachne.error :refer [error deferror]]
             [clojure.spec :as s]))
 
+(defn- context-matches-return
+  "Spec function to assert that, when a function is passed a :context, its
+   return value is also a context."
+  [f]
+  (if (nil? (:context f))
+    (nil? (:ret f))
+    (some? (:ret f))))
+
+(s/def :chimera.operation/context some?)
+
 (s/def :chimera.operation/initialize-migrations
   (s/fspec :args (s/cat :adapter :chimera/adapter
                         :op #{:chimera.operation/initialize-migrations}
@@ -23,34 +33,48 @@
                         :payload (s/keys :req-un [:chimera.operation.migration/signature
                                                   :chimera.operation.migraiton/name
                                                   :chimera.operation.migration/operations]))
-           :ret boolean?))
+           :ret nil?))
+
+(s/def :chimera.operation/add-attribute
+  (s/fspec :args (s/cat :adapter :chimera/adapter
+                        :op #{:chimera.operation/add-attribute}
+                        :payload (s/keys :req [:chimera.migration.operation.add-attribute/attr])
+                        :context :chimera.operation/context)
+           :ret :chimera.operation/context))
 
 (s/def :chimera.operation/put
   (s/fspec :args (s/cat :adapter :chimera/adapter
                         :op #{:chimera.operation/put}
                         :payload :chimera/entity-map
-                        :context (s/? any?))
-           :ret true?))
+                        :context (s/? :chimera.operation/context))
+           :fn context-matches-return
+           :ret (s/or :without-context nil?
+                      :with-context :chimera.operation/context)))
 
 (s/def :chimera.operation/get
   (s/fspec :args (s/cat :adapter :chimera/adapter
                         :op #{:chimera.operation/get}
                         :payload :chimera/lookup)
-    :ret :chimera/entity-map))
+           :ret (s/or :no-result nil?
+                      :result :chimera/entity-map)))
 
 (s/def :chimera.operation/update
   (s/fspec :args (s/cat :adapter :chimera/adapter
                         :op #{:chimera.operation/update}
                         :payload :chimera/entity-map
-                        :context (s/? any?))
-    :ret true?))
+                        :context (s/? :chimera.operation/context))
+           :fn context-matches-return
+           :ret (s/or :without-context nil?
+                      :with-context :chimera.operation/context)))
 
 (s/def :chimera.operation/delete-entity
   (s/fspec :args (s/cat :adapter :chimera/adapter
                         :op #{:chimera.operation/delete-entity}
                         :payload :chimera/lookup
-                        :context (s/? any?))
-    :ret boolean?))
+                        :context (s/? :chimera.operation/context))
+           :fn context-matches-return
+           :ret (s/or :without-context nil?
+                      :with-context :chimera.operation/context)))
 
 (s/def :chimera.operation/delete
   (s/fspec :args (s/cat :adapter :chimera/adapter
@@ -60,8 +84,10 @@
                                         :attribute :chimera.attribute/name
                                         :value (s/? (s/or :primitive :chimera/primitive
                                                            :ref :chimera/lookup))))
-                   :context (s/? any?))
-           :ret boolean?))
+                   :context (s/? :chimera.operation/context))
+           :fn context-matches-return
+           :ret (s/or :without-context nil?
+                      :with-context :chimera.operation/context)))
 
 (s/def :chimera.operation/batch
   (s/fspec :args (s/cat :adapter :chimera/adapter
@@ -69,7 +95,7 @@
                         :payload (s/coll-of
                                    (s/tuple :chimera/operation-type any?)
                                    :min-count 1))
-    :ret boolean?))
+           :ret nil?))
 
 
 (def operations

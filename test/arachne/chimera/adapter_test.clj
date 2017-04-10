@@ -2,6 +2,7 @@
   "These tests form the reference implementation for any Adapter."
   (:require [clojure.test :refer :all]
             [clojure.spec :as s]
+            [clojure.spec.test :as st]
             [arachne.core :as core]
             [arachne.core.runtime :as rt]
             [arachne.core.config :as cfg]
@@ -19,6 +20,9 @@
            (java.util UUID Date)))
 
 (arachne.error/explain-test-errors!)
+
+;(st/instrument)
+(alter-var-root #'arachne.chimera/*validate-operation-results* (constantly true))
 
 (deftest test-harness
   (harness/exercise-all ta/test-adapter [:org.arachne-framework/arachne-chimera]))
