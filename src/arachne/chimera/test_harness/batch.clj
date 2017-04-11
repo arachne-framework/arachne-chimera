@@ -47,8 +47,8 @@
 
       (testing "update and delete"
         (chimera/operate adapter :chimera.operation/batch
-                         [[:chimera.operation/update {:test.person/id james
-                                                      :test.person/name "Jimmy"}]
+                         [[:chimera.operation/put {:test.person/id james
+                                                   :test.person/name "Jimmy"}]
                           [:chimera.operation/delete-entity (chimera/lookup :test.person/id mary)]])
 
         (is (= {:test.person/id james

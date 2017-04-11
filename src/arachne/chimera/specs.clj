@@ -72,12 +72,13 @@
 
 (s/def :chimera/entity-map-with-components
   (s/map-of :chimera.attribute/name (s/or :primitive :chimera/primitive
-                                      :ref :chimera/lookup
-                                      :component :chimera/entity-map-with-components
-                                      :coll (s/coll-of (s/or :primitive :chimera/primitive
-                                                         :ref :chimera/lookup
-                                                         :component :chimera/entity-map-with-components)
-                                              :kind set?))))
+                                          :ref :chimera/lookup
+                                          :component :chimera/entity-map-with-components
+                                          :coll (s/coll-of (s/or :primitive :chimera/primitive
+                                                                 :ref :chimera/lookup
+                                                                 :component :chimera/entity-map-with-components)
+                                                            :kind set?))
+            :min-count 1))
 
 
 (s/def :chimera/entity-map
@@ -85,6 +86,7 @@
                                           :ref :chimera/lookup
                                           :coll (s/coll-of (s/or :primitive :chimera/primitive
                                                                  :ref :chimera/lookup)
-                                                           :kind set?))))
+                                                           :kind set?))
+            :min-count 1))
 
 

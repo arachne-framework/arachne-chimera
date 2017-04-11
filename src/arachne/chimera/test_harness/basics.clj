@@ -43,17 +43,14 @@
         (is (= {:test.person/id mary, :test.person/name "Mary"}
                (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id mary))))
         (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id (UUID/randomUUID)))))
-        (is (thrown-with-msg? ArachneException #"already"
-                              (chimera/operate adapter :chimera.operation/put {:test.person/id james
-                                                                               :test.person/name "James"})))
         (is (thrown-with-msg? ArachneException #"requires a key"
                               (chimera/operate adapter :chimera.operation/put {:test.person/name "Elizabeth"}))))
 
-      (testing "testing update operation"
+      (testing "testing updates"
         (let [t1 (java.util.Date.)
               t2 (java.util.Date.)]
 
-          (chimera/operate adapter :chimera.operation/update {:test.person/id james
+          (chimera/operate adapter :chimera.operation/put {:test.person/id james
                                                               :test.person/dob t1})
 
           (is (= {:test.person/id james,
@@ -61,15 +58,10 @@
                   :test.person/dob t1}
                  (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))
 
-          (is (thrown-with-msg? ArachneException #"does not exist"
-                                (chimera/operate adapter :chimera.operation/update {:test.person/id (UUID/randomUUID)
-                                                                                    :test.person/dob t1})))
-
           (is (thrown-with-msg? ArachneException #"requires a key"
-                                (chimera/operate adapter :chimera.operation/update {:test.person/dob t1})))
+                                (chimera/operate adapter :chimera.operation/put {:test.person/dob t1})))
 
-
-          (chimera/operate adapter :chimera.operation/update {:test.person/id james
+          (chimera/operate adapter :chimera.operation/put {:test.person/id james
                                                               :test.person/name "Jimmy"
                                                               :test.person/dob t2})
 

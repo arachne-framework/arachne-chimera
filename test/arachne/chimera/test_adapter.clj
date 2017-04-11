@@ -40,7 +40,6 @@
                                                          :chimera.operation/add-attribute
                                                          :chimera.operation/get
                                                          :chimera.operation/put
-                                                         :chimera.operation/update
                                                          :chimera.operation/delete
                                                          :chimera.operation/delete-entity
                                                          :chimera.operation/batch])
@@ -60,10 +59,6 @@
                                         :chimera.adapter.dispatch/pattern "_"
                                         :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/get}
                                         :chimera.adapter.dispatch/impl ::get-op}
-                                       {:chimera.adapter.dispatch/index 0,
-                                        :chimera.adapter.dispatch/pattern "_"
-                                        :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/update}
-                                        :chimera.adapter.dispatch/impl ::update-op}
                                        {:chimera.adapter.dispatch/index 0,
                                         :chimera.adapter.dispatch/pattern "_"
                                         :chimera.adapter.dispatch/operation {:chimera.operation/type :chimera.operation/delete-entity}
@@ -139,25 +134,6 @@
                     :adapter-eid (:db/id adapter)
                     :adapter-aid (:arachne/id adapter)})))))))
 
-(defn put-op
-  ([adapter op-type emap]
-   (let [ds (datastore adapter)]
-     (swap! ds
-            (fn [data]
-              (put-op adapter op-type emap data))))
-   true)
-  ([adapter _ emap data]
-   (let [[k v] (entity-map-lookup adapter emap :chimera.operation/put)
-         existing (when k (find-entity (:data data) k v))]
-     (if existing
-       (error ::cho/entity-already-exists
-              {:lookup [k v]
-               :adapter-eid (:db/id adapter)
-               :adapter-aid (:arachne/id adapter)})
-       (do
-         (ensure-ref-values adapter :chimera.operation/put data emap)
-         (update-in data [:data] (fnil conj #{}) emap))))))
-
 (defn- simple-coll? [x] (and (coll? x) (not (map? x))))
 
 (defn- update-merge
@@ -174,23 +150,20 @@
         updated-entity (merge-with update-merge entity update-map)]
     (conj entities updated-entity)))
 
-(defn update-op
+(defn put-op
   ([adapter op-type emap]
-   (swap! (datastore adapter)
-          (fn [data] (update-op adapter op-type emap data)))
+   (let [ds (datastore adapter)]
+     (swap! ds
+       (fn [data]
+         (put-op adapter op-type emap data))))
    true)
-  ([adapter op-type emap data]
-   (let [[k v] (entity-map-lookup adapter emap :chimera.operation/update)
+  ([adapter _ emap data]
+   (let [[k v] (entity-map-lookup adapter emap :chimera.operation/put)
          existing (when k (find-entity (:data data) k v))]
+     (ensure-ref-values adapter :chimera.operation/put data emap)
      (if existing
-       (do
-         (ensure-ref-values adapter :chimera.operation/update data emap)
-         (update data :data update-entity existing emap))
-       (error ::cho/entity-does-not-exist
-              {:lookup [k v]
-               :op :chimera.operation/update
-               :adapter-eid (:db/id adapter)
-               :adapter-aid (:arachne/id adapter)})))))
+       (update data :data update-entity existing emap)
+       (update-in data [:data] (fnil conj #{}) emap)))))
 
 (defn- remove-entity-references
   "Remove all ref attributes targeting the specified lookup"

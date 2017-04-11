@@ -58,15 +58,6 @@
            :ret (s/or :no-result nil?
                       :result :chimera/entity-map-with-components)))
 
-(s/def :chimera.operation/update
-  (s/fspec :args (s/cat :adapter :chimera/adapter
-                        :op #{:chimera.operation/update}
-                        :payload :chimera/entity-map
-                        :context (s/? :chimera.operation/context))
-           :fn context-matches-return
-           :ret (s/or :without-context nil?
-                      :with-context :chimera.operation/context)))
-
 (s/def :chimera.operation/delete-entity
   (s/fspec :args (s/cat :adapter :chimera/adapter
                         :op #{:chimera.operation/delete-entity}
@@ -108,7 +99,7 @@
     :chimera.operation/idempotent? true
     :arachne/doc "Apply a migration to a database."}
    {:chimera.operation/type :chimera.operation/add-attribute
-    :chimera.operation/batchable? false
+    :chimera.operation/batchable? true
     :chimera.operation/idempotent? true
     :arachne/doc "Add an attribute definition to the database."}
    {:chimera.operation/type :chimera.operation/get
@@ -118,11 +109,7 @@
    {:chimera.operation/type :chimera.operation/put
     :chimera.operation/batchable? true
     :chimera.operation/idempotent? false
-    :arachne/doc "Add a new entity to the database. The entity must not previously exist (as determined by any key attributes)."}
-   {:chimera.operation/type :chimera.operation/update
-    :chimera.operation/batchable? true
-    :chimera.operation/idempotent? true
-    :arachne/doc "Update an entity in the database. The entity must already exist."}
+    :arachne/doc "Add or update an entity in the database."}
    {:chimera.operation/type :chimera.operation/delete-entity
     :chimera.operation/batchable? true
     :chimera.operation/idempotent? false
@@ -141,17 +128,6 @@
   [cfg]
   (cfg/with-provenance :module `add-operations
      (cfg/update cfg operations)))
-
-(deferror ::entity-already-exists
-  :message "Entity `:lookup` already exists in adapter `:adapter-eid` (Arachne ID `:adapter-aid`)"
-  :explanation "Chimera attempted to `put` a value, using the key `:lookup`. However, an entity with that lookup already exists in the target DB.
-
-  Chimera does not support \"upsert\" for `put` operations; `put` is intended only for new entities."
-  :suggestions ["Use an `update` operation to update an existing entity."
-                "Determine a new key attribute value for the entity that doesn't already exist."]
-  :ex-data-docs {:lookup "The lookup key"
-                 :adapter-eid "Adapter entity ID"
-                 :adapter-aid "Adapter Arachne ID"})
 
 (deferror ::entity-does-not-exist
           :message "Entity `:lookup` does not exist in adapter `:adapter-eid` (Arachne ID `:adapter-aid`)"

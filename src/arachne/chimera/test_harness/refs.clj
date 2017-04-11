@@ -26,28 +26,24 @@
                                                 :test.person/name "James"
                                                 :test.person/friends #{(chimera/lookup [:test.person/id mary])}})))
         (chimera/operate adapter :chimera.operation/put {:test.person/id james
-                                                         :test.person/name "James"})
-        (is (thrown-with-msg? ArachneException #"does not exist"
-                              (chimera/operate adapter :chimera.operation/update
-                                               {:test.person/id james
-                                                :test.person/friends #{(chimera/lookup [:test.person/id mary])}}))))
+                                                         :test.person/name "James"}))
 
       (testing "can create refs to elements in the same batch"
         (is (nil? (chimera/operate adapter :chimera.operation/batch
                     [[:chimera.operation/put {:test.person/id mary
                                               :test.person/name "Mary"}]
-                     [:chimera.operation/update {:test.person/id james
-                                                 :test.person/friends #{(chimera/lookup [:test.person/id mary])}}]]))))
+                     [:chimera.operation/put {:test.person/id james
+                                              :test.person/friends #{(chimera/lookup [:test.person/id mary])}}]]))))
 
       (testing "can't set cardinality-many refs using single value"
         (is (thrown-with-msg? ArachneException #"be a set"
-              (chimera/operate adapter :chimera.operation/update
+              (chimera/operate adapter :chimera.operation/put
                                {:test.person/id mary
                                 :test.person/friends (chimera/lookup :test.person/id james)}))))
 
       (testing "can't set cardinality-one refs using a set"
         (is (thrown-with-msg? ArachneException #"be a single value"
-                              (chimera/operate adapter :chimera.operation/update
+                              (chimera/operate adapter :chimera.operation/put
                                                {:test.person/id mary
                                                 :test.person/best-friend #{(chimera/lookup :test.person/id james)}}))))
 
@@ -55,7 +51,7 @@
         (chimera/operate adapter :chimera.operation/batch
           [[:chimera.operation/put {:test.person/id elizabeth
                                     :test.person/name "Elizabeth"}]
-           [:chimera.operation/update {:test.person/id james
+           [:chimera.operation/put {:test.person/id james
                                        :test.person/friends #{(chimera/lookup :test.person/id elizabeth)}}]])
         (is (= 2 (count (:test.person/friends (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))))
         (chimera/operate adapter :chimera.operation/delete-entity (chimera/lookup :test.person/id mary))
@@ -63,7 +59,7 @@
 
       (testing "ref attrs are removed when target is removed (card one)"
         (chimera/operate adapter :chimera.operation/batch
-          [[:chimera.operation/update {:test.person/id james
+          [[:chimera.operation/put {:test.person/id james
                                        :test.person/best-friend (chimera/lookup :test.person/id elizabeth)}]])
         (is (:test.person/best-friend (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))
         (chimera/operate adapter :chimera.operation/delete-entity (chimera/lookup :test.person/id elizabeth))
