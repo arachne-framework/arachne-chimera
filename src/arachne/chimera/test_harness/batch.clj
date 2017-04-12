@@ -60,10 +60,5 @@
       (when (atomic-batches? adapter)
         (testing "transactionality"
           (let [edward (UUID/randomUUID)]
-            (is (thrown-with-msg? ArachneException #"does not exist"
-                                  (chimera/operate adapter :chimera.operation/batch
-                                                   [[:chimera.operation/put {:test.person/id edward
-                                                                             :test.person/name "Edward"}]
-                                                    [:chimera.operation/delete-entity (chimera/lookup :test.person/id (UUID/randomUUID))]])))
             (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id edward))))))))))
 

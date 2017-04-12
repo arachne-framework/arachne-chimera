@@ -85,22 +85,6 @@
         (filter #(= value (get % attr)))
         first)))
 
-(defn- entity-map-lookup
-  "Given an entity map, return the identity lookup, or throw an exception if none exists."
-  [adapter entity-map op]
-  (let [key (first (filter #(adapter/key? adapter %) (keys entity-map)))]
-    (when-not key
-      (let [model-keys (adapter/key-attributes adapter)]
-        (error ::cho/no-key-specified
-               {:op op
-                :adapter-eid (:db/id adapter)
-                :adapter-aid (:arachne/id adapter)
-                :provided-attrs model-keys
-                :provided-attrs-str (err/bullet-list (keys entity-map))
-                :key-attrs (adapter/key-attributes adapter)
-                :key-attrs-str (err/bullet-list model-keys)})))
-    [key (entity-map key)]))
-
 (defn- datastore
   "Retrieve the datastore for modification"
   [adapter]
@@ -158,7 +142,7 @@
          (put-op adapter op-type emap data))))
    true)
   ([adapter _ emap data]
-   (let [[k v] (entity-map-lookup adapter emap :chimera.operation/put)
+   (let [[k v] (adapter/entity-map-lookup adapter emap :chimera.operation/put)
          existing (when k (find-entity (:data data) k v))]
      (ensure-ref-values adapter :chimera.operation/put data emap)
      (if existing
@@ -168,7 +152,7 @@
 (defn- remove-entity-references
   "Remove all ref attributes targeting the specified lookup"
   [data entity adapter]
-  (let [lu (chimera/lookup (entity-map-lookup adapter entity :arachne.operation/delete-entity))]
+  (let [lu (chimera/lookup (adapter/entity-map-lookup adapter entity :arachne.operation/delete-entity))]
     (set (map (fn [entity]
            (into {} (map (fn [[k v :as entry]]
                            (if (set? v)
@@ -203,11 +187,7 @@
    (let [entity (find-entity (:data data) lookup)]
      (if entity
        (update data :data delete-entity entity adapter)
-       (error ::cho/entity-does-not-exist
-              {:lookup [(:attribute lookup) (:value lookup)]
-               :op :chimera.operation/delete-entity
-               :adapter-eid (:db/id adapter)
-               :adapter-aid (:arachne/id adapter)})))))
+       data))))
 
 (defn- delete-attr
   [data entity attr adapter]

@@ -74,11 +74,7 @@
 
         (chimera/operate adapter :chimera.operation/delete-entity (chimera/lookup :test.person/id james))
 
-        (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))
-
-        (is (thrown-with-msg? ArachneException #"does not exist"
-                              (chimera/operate adapter :chimera.operation/delete-entity
-                                               (chimera/lookup :test.person/id james))))))))
+        (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))))))
 
 (defn delete-attributes
   [adapter-dsl-fn modules]

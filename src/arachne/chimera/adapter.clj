@@ -9,7 +9,9 @@
             [arachne.core.util :as util]
             [arachne.core.config :as cfg]
             [arachne.chimera.specs :as cs]
-            [arachne.chimera.migration :as mig])
+            [arachne.chimera.migration :as mig]
+            [arachne.chimera.operation :as o]
+            )
   (:import [java.util WeakHashMap]))
 
 (defprotocol Adapter
@@ -254,3 +256,23 @@
   "Given an adapter and an attibute name, return true if the attribute permits multiple values."
   [adapter attr]
   (not (= 1 (-> adapter :attributes attr :chimera.attribute/max-cardinality))))
+
+(defn entity-map-lookup
+  "Given an adapter, an operation type, and an entity map, return the identity
+   lookup for the entity map, based on attributes defined as identity
+   attributes for the adapter.
+
+   Throws an exception if the entity map does not contain an identity attribute."
+  [adapter entity-map op]
+  (let [key (first (filter #(key? adapter %) (keys entity-map)))]
+    (when-not key
+      (let [model-keys (key-attributes adapter)]
+        (error ::o/no-key-specified
+          {:op op
+           :adapter-eid (:db/id adapter)
+           :adapter-aid (:arachne/id adapter)
+           :provided-attrs model-keys
+           :provided-attrs-str (e/bullet-list (keys entity-map))
+           :key-attrs (key-attributes adapter)
+           :key-attrs-str (e/bullet-list model-keys)})))
+    [key (entity-map key)]))
