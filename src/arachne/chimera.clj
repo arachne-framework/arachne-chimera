@@ -159,3 +159,8 @@
      identifier
      (apply ->Lookup identifier)))
   ([attr value] (->Lookup attr value)))
+
+(defn lookup?
+  "Determine whether an object is a Chimera Lookup"
+  [obj]
+  (instance? Lookup obj))

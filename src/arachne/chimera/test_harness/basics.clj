@@ -83,6 +83,8 @@
         rt (component/start rt)
         adapter (rt/lookup rt [:arachne/id :test/adapter])]
 
+    (chimera/ensure-migrations rt [:arachne/id :test/adapter])
+
     (let [james (UUID/randomUUID)
           original-map {:test.person/id james
                         :test.person/name "James"
