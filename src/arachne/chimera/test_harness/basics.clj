@@ -74,7 +74,24 @@
 
         (chimera/operate adapter :chimera.operation/delete-entity (chimera/lookup :test.person/id james))
 
-        (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))))))
+        (is (nil? (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james)))))
+
+
+      (testing "can't set cardinality-many attrs using single value"
+        (is (thrown-with-msg? ArachneException #"be a set"
+              (chimera/operate adapter :chimera.operation/put
+                {:test.person/id mary
+                 :test.person/nicknames "M-dog"}))))
+
+      (testing "can't set cardinality-one attrs using a set"
+        (is (thrown-with-msg? ArachneException #"be a single value"
+              (chimera/operate adapter :chimera.operation/put
+                {:test.person/id mary
+                 :test.person/name #{"Mary"}}))))
+
+
+
+      )))
 
 (defn delete-attributes
   [adapter-dsl-fn modules]

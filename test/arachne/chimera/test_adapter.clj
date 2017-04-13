@@ -94,29 +94,29 @@
   "Given an entity map, ensure that all lookup values exist in the data store, throwing an error otherwise"
   [adapter op data entity-map]
   (doseq [[attr value] entity-map]
-    (when (adapter/ref? adapter attr)
-      (let [card-many? (adapter/cardinality-many? adapter attr)]
-        (when (and card-many? (not (set? value)))
-          (error ::cho/unexpected-cardinality-one
-                 {:attribute attr
-                  :value value
-                  :op op
-                  :adapter-eid (:db/id adapter)
-                  :adapter-aid (:arachne/id adapter)}))
-        (when (and (set? value) (not card-many?))
-          (error ::cho/unexpected-cardinality-many
-                 {:attribute attr
-                  :value value
-                  :op op
-                  :adapter-eid (:db/id adapter)
-                  :adapter-aid (:arachne/id adapter)}))
+    (let [card-many? (adapter/cardinality-many? adapter attr)]
+      (when (and card-many? (not (set? value)))
+        (error ::cho/unexpected-cardinality-one
+          {:attribute attr
+           :value value
+           :op op
+           :adapter-eid (:db/id adapter)
+           :adapter-aid (:arachne/id adapter)}))
+      (when (and (set? value) (not card-many?))
+        (error ::cho/unexpected-cardinality-many
+          {:attribute attr
+           :value value
+           :op op
+           :adapter-eid (:db/id adapter)
+           :adapter-aid (:arachne/id adapter)}))
+      (when (adapter/ref? adapter attr)
         (doseq [lu (if card-many? value [value])]
           (when-not (find-entity (:data data) lu)
             (error ::cho/entity-does-not-exist
-                   {:lookup [(:attribute lu) (:value lu)]
-                    :op op
-                    :adapter-eid (:db/id adapter)
-                    :adapter-aid (:arachne/id adapter)})))))))
+              {:lookup [(:attribute lu) (:value lu)]
+               :op op
+               :adapter-eid (:db/id adapter)
+               :adapter-aid (:arachne/id adapter)})))))))
 
 (defn- simple-coll? [x] (and (coll? x) (not (map? x))))
 

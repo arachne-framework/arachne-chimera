@@ -21,6 +21,7 @@
   (ch/migration :test/m2
     "Migration to set up schema for example-based tests"
     [:test/m1]
+    (ch/attr :test.person/nicknames :test/Person :string :min 0)
     (ch/attr :test.person/dob :test/Person :instant :min dob-min-card :max 1)
     (ch/attr :test.person/friends :test/Person :ref :test/Person :min 0)
     (ch/attr :test.person/best-friend :test/Person :ref :test/Person :min 0 :max 1)
