@@ -49,20 +49,30 @@
                                                {:test.person/id mary
                                                 :test.person/best-friend #{(chimera/lookup :test.person/id james)}}))))
 
+      (chimera/operate adapter :chimera.operation/batch
+        [[:chimera.operation/put {:test.person/id elizabeth
+                                  :test.person/name "Elizabeth"}]
+         [:chimera.operation/put {:test.person/id james
+                                  :test.person/friends #{(chimera/lookup :test.person/id elizabeth)}}]])
+      (chimera/operate adapter :chimera.operation/batch
+        [[:chimera.operation/put {:test.person/id james
+                                  :test.person/best-friend (chimera/lookup :test.person/id elizabeth)}]])
+
+      (testing "ref attributes are returned as lookups"
+        (is (= {:test.person/id james
+                :test.person/name "James"
+                :test.person/friends #{(chimera/lookup :test.person/id mary)
+                                       (chimera/lookup :test.person/id elizabeth)}
+                :test.person/best-friend (chimera/lookup :test.person/id elizabeth)}
+              (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james)))))
+
       (testing "ref attrs are removed when target is removed (card many)"
-        (chimera/operate adapter :chimera.operation/batch
-          [[:chimera.operation/put {:test.person/id elizabeth
-                                    :test.person/name "Elizabeth"}]
-           [:chimera.operation/put {:test.person/id james
-                                       :test.person/friends #{(chimera/lookup :test.person/id elizabeth)}}]])
         (is (= 2 (count (:test.person/friends (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))))
         (chimera/operate adapter :chimera.operation/delete-entity (chimera/lookup :test.person/id mary))
         (is (= 1 (count (:test.person/friends (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james)))))))
 
       (testing "ref attrs are removed when target is removed (card one)"
-        (chimera/operate adapter :chimera.operation/batch
-          [[:chimera.operation/put {:test.person/id james
-                                       :test.person/best-friend (chimera/lookup :test.person/id elizabeth)}]])
+
         (is (:test.person/best-friend (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))
         (chimera/operate adapter :chimera.operation/delete-entity (chimera/lookup :test.person/id elizabeth))
         (is (not (:test.person/best-friend (chimera/operate adapter :chimera.operation/get (chimera/lookup :test.person/id james))))))

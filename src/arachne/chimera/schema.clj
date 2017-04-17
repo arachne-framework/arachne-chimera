@@ -16,15 +16,19 @@
        "Is the operation intended to be idempotent (that is, can it be safely applied multiple times with no effect?)"))
 
    (m/type :chimera/Adapter [:arachne/Component]
-      "An adapter component"
-      (m/attr :chimera.adapter/model :many :component :chimera/DataModelElement
-        "Data model elements that are part of the concrete data model for this Adapter.")
-      (m/attr :chimera.adapter/migrations :many :chimera/Migration
-        "Migrations that are a part of this Adapter (as a cross-time model)")
-      (m/attr :chimera.adapter/capabilities :component :one-or-more :arachne.adapter/Capability
-        "Data about the operations that this Adapter supports")
-      (m/attr :chimera.adapter/dispatches :component :one-or-more :arachne.adapter/Dispatch
-        "Data used to drive what code is actually evaluated for adapter operations"))
+     "An adapter component"
+     (m/attr :chimera.adapter/model :many :component :chimera/DataModelElement
+       "Data model elements that are part of the concrete data model for this Adapter.")
+     (m/attr :chimera.adapter/migrations :many :chimera/Migration
+       "Migrations that are a part of this Adapter (as a cross-time model)")
+     (m/attr :chimera.adapter/capabilities :component :one-or-more :arachne.adapter/Capability
+       "Data about the operations that this Adapter supports")
+     (m/attr :chimera.adapter/dispatches :component :one-or-more :arachne.adapter/Dispatch
+       "Data used to drive what code is actually evaluated for adapter operations")
+     (m/attr :chimera.adapter/start :one-or-none :keyword
+       "Function implementing the adapter component's `start` method.")
+     (m/attr :chimera.adapter/stop :one-or-none :keyword
+       "Function implementing the adapter component's `stop` method."))
 
     (m/type :chimera.adapter/Dispatch []
       "Information used to dispatch operations to this adapter"

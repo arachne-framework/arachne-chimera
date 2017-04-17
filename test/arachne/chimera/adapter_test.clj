@@ -46,7 +46,7 @@
 
   (a/id :test/rt (a/runtime [:test/adapter])))
 
-;; These are adapter specific
+;; These are adapter specific, so not in the general test harness
 (deftest adapter-migrations
   (testing "initial migration"
     (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera]
@@ -77,4 +77,12 @@
         (is (thrown-with-msg? ArachneException #"checksum"
                               (chimera/ensure-migrations rt [:arachne/id :test/adapter])))))))
 
-;; TODO: Write Datomic, K/V & SQL adapters, and apply these tests
+(deftest adapter-start-stop
+  (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera] `(config 0))
+        rt (rt/init cfg [:arachne/id :test/rt])
+        rt (component/start rt)]
+
+    (is (= 42 (:state (rt/lookup rt [:arachne/id :test/adapter]))))
+
+    (let [stopped-rt (component/stop rt)]
+      (is (= 43 (:state (rt/lookup stopped-rt [:arachne/id :test/adapter])))))))

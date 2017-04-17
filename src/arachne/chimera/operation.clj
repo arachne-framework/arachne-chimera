@@ -131,9 +131,9 @@
 
 (deferror ::entity-does-not-exist
           :message "Entity `:lookup` does not exist in adapter `:adapter-eid` (Arachne ID `:adapter-aid`)"
-          :explanation "Chimera attempted to perform `:op` on an entity, using the key `:lookup`. However, an entity with that lookup does not exist in the target DB.
+          :explanation "Chimera attempted to perform a `:op`, operation containing the key `:lookup`. However, an entity with that lookup does not already exist in the target DB.
 
-           The `:op` operation requires that the the specified entity exist in the data source."
+           The operation requires that the the specified entity exist in the data source."
           :suggestions ["Ensure that the entity you are attempting to modify exists in the given adapter."]
           :ex-data-docs {:lookup "The lookup key"
                          :op "The operation"

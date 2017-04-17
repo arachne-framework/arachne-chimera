@@ -18,6 +18,14 @@
     *global-data*
     (atom {})))
 
+(defn start-fn
+  [adapter]
+  (assoc adapter :state 42))
+
+(defn stop-fn
+  [adapter]
+  (assoc adapter :state 43))
+
 (defn test-adapter
   "DSL to define a test adapter instance in the config."
   [migration]
@@ -32,6 +40,8 @@
           {:db/id atomstore-tid
            :arachne.component/constructor ::atom-store-ctor})
          {:db/id tid
+          :chimera.adapter/start ::start-fn
+          :chimera.adapter/stop ::stop-fn
           :arachne.component/dependencies [{:arachne.component.dependency/key :atom
                                             :arachne.component.dependency/entity atomstore-tid}]
           :chimera.adapter/migrations [{:chimera.migration/name migration}]
@@ -142,7 +152,8 @@
          (put-op adapter op-type emap data))))
    true)
   ([adapter _ emap data]
-   (let [[k v] (adapter/entity-map-lookup adapter emap :chimera.operation/put)
+   (let [k (adapter/identity-attribute adapter emap :chimera.operation/put)
+         v (get emap k)
          existing (when k (find-entity (:data data) k v))]
      (ensure-ref-values adapter :chimera.operation/put data emap)
      (if existing
@@ -152,7 +163,9 @@
 (defn- remove-entity-references
   "Remove all ref attributes targeting the specified lookup"
   [data entity adapter]
-  (let [lu (chimera/lookup (adapter/entity-map-lookup adapter entity :arachne.operation/delete-entity))]
+  (let [key (adapter/identity-attribute adapter entity :arachne.operation/delete-entity)
+        val (get entity key)
+        lu (chimera/lookup key val)]
     (set (map (fn [entity]
            (into {} (map (fn [[k v :as entry]]
                            (if (set? v)
