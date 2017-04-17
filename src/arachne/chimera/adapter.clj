@@ -258,16 +258,37 @@
     :chimera.primitive/uuid
     :chimera.primitive/bytes})
 
+(defn range
+  "Given an adapter and an attribute name, return the attribute's range.
+
+  The range will either be a primitive keyword (for primitive attributes), or
+  the type name (for refs)"
+  [adapter attr]
+  (-> adapter :attributes attr :chimera.attribute/range))
+
 (defn ref?
   "Given an adapter and an attibute name, return true if the attribute is a ref attribute."
   [adapter attr]
-  (let [range (-> adapter :attributes attr :chimera.attribute/range)]
-    (and range (not (primitives range)))))
+  (when-let [r (range adapter attr)]
+    (not (primitives r))))
 
 (defn cardinality-many?
   "Given an adapter and an attibute name, return true if the attribute permits multiple values."
   [adapter attr]
   (not (= 1 (-> adapter :attributes attr :chimera.attribute/max-cardinality))))
+
+(defn key-for-type
+  "Given an adapter and a type name, return the key attribute for that type."
+  [adapter type]
+  (cfg/q (:arachne/config adapter)
+    '[:find ?attr .
+      :in $ ?adapter ?type
+      :where
+      [?adapter :chimera.adapter/model ?dme]
+      [?dme :chimera.attribute/domain ?type]
+      [?dme :chimera.attribute/key true]
+      [?dme :chimera.attribute/name ?attr]]
+    (:db/id adapter) type))
 
 (defn identity-attribute
   "Given an adapter, an operation type, and an entity map, return the identity
