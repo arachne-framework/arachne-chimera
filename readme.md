@@ -1,9 +1,8 @@
-# arachne-http
+# arachne-chimera
 
-[![CircleCI](https://circleci.com/gh/arachne-framework/arachne-http.svg?style=shield)](https://circleci.com/gh/arachne-framework/arachne-http)
+[![CircleCI](https://circleci.com/gh/arachne-framework/arachne-chimera.svg?style=shield)](https://circleci.com/gh/arachne-framework/arachne-chimera)
 
-This is the abstract HTTP Arachne module, defining the basic
-attributes of a HTTP server.
+This is Chimera, Arachne's abstract data access layer.
 
 ## WARNING
 
