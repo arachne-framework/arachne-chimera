@@ -258,7 +258,7 @@
     :chimera.primitive/uuid
     :chimera.primitive/bytes})
 
-(defn range
+(defn attr-range
   "Given an adapter and an attribute name, return the attribute's range.
 
   The range will either be a primitive keyword (for primitive attributes), or
@@ -269,7 +269,7 @@
 (defn ref?
   "Given an adapter and an attibute name, return true if the attribute is a ref attribute."
   [adapter attr]
-  (when-let [r (range adapter attr)]
+  (when-let [r (attr-range adapter attr)]
     (not (primitives r))))
 
 (defn cardinality-many?
