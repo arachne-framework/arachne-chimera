@@ -289,22 +289,3 @@
       [?dme :chimera.attribute/key true]
       [?dme :chimera.attribute/name ?attr]]
     (:db/id adapter) type))
-
-(defn identity-attribute
-  "Given an adapter, an operation type, and an entity map, return the identity
-   attribute in the entity map, based on attributes defined as identity
-   attributes for the adapter.
-
-   Throws an exception if the entity map does not contain an identity attribute."
-  [adapter entity-map op]
-  (if-let [key (first (filter #(key? adapter %) (keys entity-map)))]
-    key
-    (let [model-keys (key-attributes adapter)]
-      (error ::o/no-key-specified
-        {:op op
-         :adapter-eid (:db/id adapter)
-         :adapter-aid (:arachne/id adapter)
-         :provided-attrs model-keys
-         :provided-attrs-str (e/bullet-list (keys entity-map))
-         :key-attrs (key-attributes adapter)
-         :key-attrs-str (e/bullet-list model-keys)}))))

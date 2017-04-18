@@ -141,8 +141,8 @@
                          :adapter-aid "Adapter Arachne ID"})
 
 (deferror ::no-key-specified
-          :message "The requested operation `:op` requires a key attribute."
-          :explanation "Chimera attempted to perform a `:op` operation, which takes an entity map. Furthermore, it requires that the supplied entity map contain at least one 'key' attribute, so that the created or updated entity can be uniquely identified.
+          :message "The requested operation requires a key attribute."
+          :explanation "Chimera attempted to perform an operation which takes an entity map. Furthermore, it requires that the supplied entity map contain at least one 'key' attribute, so that the created or updated entity can be uniquely identified.
 
           The adapater for this operation was `:adapter-eid` (Arachne ID: `:adapter-aid`)
 
@@ -156,8 +156,7 @@
 
               :key-attrs-str"
           :suggestions ["Make sure the entity map has a key attribute"]
-          :ex-data-docs {:op "The operation type"
-                         :adapter-eid "Adapter entity ID"
+          :ex-data-docs {:adapter-eid "Adapter entity ID"
                          :adapter-aid "Adapter Arachne ID"
                          :provided-attrs "Entity map attrs"
                          :provided-attrs-str "Entity map attrs (formatted)"

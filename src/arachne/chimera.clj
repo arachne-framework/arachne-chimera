@@ -10,8 +10,7 @@
             [arachne.chimera.operation :as ops]
             [arachne.chimera.migration :as migration]
             [arachne.chimera.adapter :as adapter]
-            [valuehash.api :as vh])
-  (:refer-clojure :exclude [key get update]))
+            [valuehash.api :as vh]))
 
 (defn ^:no-doc schema
   "Return the schema for the arachne.chimera module"
@@ -164,3 +163,19 @@
   "Determine whether an object is a Chimera Lookup"
   [obj]
   (instance? Lookup obj))
+
+(defn entity-lookup
+  "Given an adapter and an entity map, return a Lookup key.
+
+   Throws an exception if the entity map does not contain an identity attribute."
+  [adapter entity-map]
+  (if-let [key (first (filter #(adapter/key? adapter %) (keys entity-map)))]
+    (lookup key (get entity-map key))
+    (let [model-keys (adapter/key-attributes adapter)]
+      (error ::ops/no-key-specified
+        {:adapter-eid (:db/id adapter)
+         :adapter-aid (:arachne/id adapter)
+         :provided-attrs model-keys
+         :provided-attrs-str (e/bullet-list (keys entity-map))
+         :key-attrs model-keys
+         :key-attrs-str (e/bullet-list model-keys)}))))

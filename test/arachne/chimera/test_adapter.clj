@@ -152,9 +152,8 @@
          (put-op adapter op-type emap data))))
    true)
   ([adapter _ emap data]
-   (let [k (adapter/identity-attribute adapter emap :chimera.operation/put)
-         v (get emap k)
-         existing (when k (find-entity (:data data) k v))]
+   (let [lu (chimera/entity-lookup adapter emap)
+         existing (when lu (find-entity (:data data) lu))]
      (ensure-ref-values adapter :chimera.operation/put data emap)
      (if existing
        (update data :data update-entity existing emap)
@@ -163,9 +162,7 @@
 (defn- remove-entity-references
   "Remove all ref attributes targeting the specified lookup"
   [data entity adapter]
-  (let [key (adapter/identity-attribute adapter entity :arachne.operation/delete-entity)
-        val (get entity key)
-        lu (chimera/lookup key val)]
+  (let [lu (chimera/entity-lookup adapter entity)]
     (set (map (fn [entity]
            (into {} (map (fn [[k v :as entry]]
                            (if (set? v)
