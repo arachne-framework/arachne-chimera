@@ -106,7 +106,7 @@
     (assert-new-attr cfg adapter migration operation attr)
     (update-model-with-attr cfg adapter attr)))
 
-(defn- operations
+(defn operations
   "Given a migration eid, return a seq of its operations (as entity maps)"
   [cfg mig-eid]
   (let [e (cfg/pull cfg '[{:chimera.migration/operation

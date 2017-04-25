@@ -12,8 +12,11 @@
             [arachne.chimera.migration :as mig]
             [arachne.chimera.operation :as o]
             [com.stuartsierra.component :as c]
-            [arachne.core.util :as u])
+            [arachne.core.util :as u]
+            [valuehash.api :as vh])
   (:import [java.util WeakHashMap]))
+
+(declare ensure-migrations)
 
 (defprotocol Adapter
   "An object representing an interface to some storage mechanism/database"
@@ -24,10 +27,13 @@
 (defrecord ChimeraAdapter [dispatch supported-operations attributes]
   c/Lifecycle
   (start [this]
-    (if-let [start (:chimera.adapter/start this)]
-      (let [start-fn (u/require-and-resolve start)]
-        (start-fn this))
-      this))
+    (let [started (if-let [start (:chimera.adapter/start this)]
+                    (let [start-fn (u/require-and-resolve start)]
+                      (start-fn this))
+                    this)]
+      (when (:chimera.adapter/apply-migrations-on-start? started)
+        (ensure-migrations started))
+      started))
   (stop [this]
     (if-let [stop (:chimera.adapter/stop this)]
       (let [stop-fn (u/require-and-resolve stop)]
@@ -289,3 +295,78 @@
       [?dme :chimera.attribute/key true]
       [?dme :chimera.attribute/name ?attr]]
     (:db/id adapter) type))
+
+(defn- conform-operation
+  [& args]
+  (let [op-type (second args)
+        op-spec (s/get-spec op-type)]
+    (when-not (:args op-spec) (error :arachne.chimera/missing-op-spec {:op-type op-type}))
+
+    (e/conform (:args op-spec) args :arachne.chimera/failed-op-spec {:op-type op-type})))
+
+(defn operate
+  "Send a Chimera operation to an adapter, first validating the operation.
+
+  The return value is the result of the operation. See the operation
+  specification for what this entails.
+
+  Optionally takes a fourth argument, the context of the operation. The
+  context is an implementation-dependent value which is used when composing
+  operations (such as batches or migrations.
+
+  Some operations always require a context, some never do, and some may be
+  called with or without one. See the operation specification for details."
+  ([adapter type payload validate-results?]
+   (assert-operation-support adapter type false)
+   (let [conformed (conform-operation adapter type payload)
+         payload (if (instance? clojure.lang.IObj payload)
+                   (vary-meta payload assoc ::conformed (:payload conformed))
+                   payload)
+         result (operate- adapter type payload)]
+     (when validate-results?
+       (e/assert (:ret (s/get-spec type)) result
+         :arachne.chimera/failed-result-spec
+         {:op-type type
+          :adapter-eid (:db/id adapter)
+          :adapter-aid (:arachne/id adapter)}))
+     result))
+
+  ([adapter type payload context validate-results?]
+   (assert-operation-support adapter type true)
+   (let [conformed (conform-operation adapter type payload context)
+         result (operate- adapter type
+                  (vary-meta payload assoc ::conformed (:payload conformed))
+                  context)]
+     (when validate-results?
+       (e/assert (:ret (s/get-spec type)) result
+         :arachne.chimera/failed-result-spec
+         {:op-type type
+          :adapter-eid (:db/id adapter)
+          :adapter-aid (:arachne/id adapter)}))
+     result)))
+
+(defn- canonical-operations
+  "Given a canonical migration entity map, return a sequence of the migration
+   operations"
+  [migration]
+  (map #(dissoc % :chimera.migration.operation/next)
+    (take-while identity
+      (iterate :chimera.migration.operation/next
+        (:chimera.migration/operation migration)))))
+
+(defn ensure-migrations
+  "Ensure that all the adapter's migrations have been applied, applying any
+   that have not.
+
+   Presumes that the adapter has been started, prior to calling this function."
+  [adapter]
+  (let [cfg (:arachne/config adapter)]
+    (operate adapter :chimera.operation/initialize-migrations true true)
+    (let [migration-eids (mig/migrations cfg (:db/id adapter))
+          migrations (map #(mig/canonical-migration cfg %) migration-eids)]
+      (doseq [migration migrations]
+        (operate adapter :chimera.operation/migrate
+          {:signature (vh/md5-str migration)
+           :name (:chimera.migration/name migration)
+           :operations (canonical-operations migration)}
+          true)))))

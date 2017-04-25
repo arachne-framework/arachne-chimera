@@ -9,8 +9,7 @@
             [arachne.chimera.schema :as schema]
             [arachne.chimera.operation :as ops]
             [arachne.chimera.migration :as migration]
-            [arachne.chimera.adapter :as adapter]
-            [valuehash.api :as vh]))
+            [arachne.chimera.adapter :as adapter]))
 
 (defn ^:no-doc schema
   "Return the schema for the arachne.chimera module"
@@ -76,14 +75,6 @@
    operation spec. Useful mostly for testing of adapters."
   false)
 
-(defn- conform-operation
-  [& args]
-  (let [op-type (second args)
-        op-spec (s/get-spec op-type)]
-    (when-not (:args op-spec) (error ::missing-op-spec {:op-type op-type}))
-
-    (e/conform (:args op-spec) args ::failed-op-spec {:op-type op-type})))
-
 (defn operate
   "Send a Chimera operation to an adapter, first validating the operation.
 
@@ -97,39 +88,9 @@
   Some operations always require a context, some never do, and some may be
   called with or without one. See the operation specification for details."
   ([adapter type payload]
-   (adapter/assert-operation-support adapter type false)
-   (let [conformed (conform-operation adapter type payload)
-         payload (if (instance? clojure.lang.IObj payload)
-                   (vary-meta payload assoc ::conformed (:payload conformed))
-                   payload)
-         result (adapter/operate- adapter type payload)]
-     (when *validate-operation-results*
-       (e/assert (:ret (s/get-spec type)) result
-         ::failed-result-spec {:op-type type
-                               :adapter-eid (:db/id adapter)
-                               :adapter-aid (:arachne/id adapter)}))
-     result))
-
+   (adapter/operate adapter type payload *validate-operation-results*))
   ([adapter type payload context]
-   (adapter/assert-operation-support adapter type true)
-   (let [conformed (conform-operation adapter type payload context)
-         result (adapter/operate- adapter type
-                  (vary-meta payload assoc ::conformed (:payload conformed))
-                  context)]
-     (when *validate-operation-results*
-       (e/assert (:ret (s/get-spec type)) result
-         ::failed-result-spec {:op-type type
-                               :adapter-eid (:db/id adapter)
-                               :adapter-aid (:arachne/id adapter)}))
-     result)))
-
-(defn- migration-operations
-  "Given a migration entity map, return a sequence of the migration operations"
-  [migration]
-  (map #(dissoc % :chimera.migration.operation/next)
-    (take-while identity
-      (iterate :chimera.migration.operation/next
-        (:chimera.migration/operation migration)))))
+   (adapter/operate adapter type payload context *validate-operation-results*)))
 
 (defn ensure-migrations
   "Given a config and a lookup for an adapter, ensure that all the adapter's
@@ -139,15 +100,7 @@
         adapter (rt/lookup rt adapter-lookup)]
     (when-not (adapter? adapter) (error ::adapter-not-found
                                    {:rt rt, :lookup adapter-lookup}))
-    (operate adapter :chimera.operation/initialize-migrations true)
-    (let [migration-eids (migration/migrations cfg (:db/id adapter))
-          migrations (map #(migration/canonical-migration cfg %) migration-eids)]
-      (doseq [migration migrations]
-        (operate adapter :chimera.operation/migrate
-          {:signature (vh/md5-str migration)
-           :name (:chimera.migration/name migration)
-           :operations (migration-operations migration)})))))
-
+    (adapter/ensure-migrations adapter)))
 
 (defrecord Lookup [attribute value])
 

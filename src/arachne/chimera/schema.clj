@@ -25,6 +25,8 @@
        "Data about the operations that this Adapter supports")
      (m/attr :chimera.adapter/dispatches :component :one-or-more :arachne.adapter/Dispatch
        "Data used to drive what code is actually evaluated for adapter operations")
+     (m/attr :chimera.adapter/apply-migrations-on-start? :one-or-none :boolean
+       "If set to true, adapter will apply its migrations as part of the startup process")
      (m/attr :chimera.adapter/start :one-or-none :keyword
        "Function implementing the adapter component's `start` method.")
      (m/attr :chimera.adapter/stop :one-or-none :keyword
