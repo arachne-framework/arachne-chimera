@@ -102,7 +102,7 @@
 
 (defmethod operation->model :chimera.operation/add-attribute
   [cfg adapter migration operation]
-  (let [attr (:chimera.migration.operation.add-attribute/attr operation)]
+  (let [attr (:chimera.operation.add-attribute/attr operation)]
     (assert-new-attr cfg adapter migration operation attr)
     (update-model-with-attr cfg adapter attr)))
 

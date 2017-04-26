@@ -89,5 +89,5 @@
                       #(if (nil? %) 0 %))]
     {:db/id (cfg/tempid)
      :chimera.migration.operation/type :chimera.operation/add-attribute
-     :chimera.migration.operation.add-attribute/attr attr-txdata}))
+     :chimera.operation.add-attribute/attr attr-txdata}))
 

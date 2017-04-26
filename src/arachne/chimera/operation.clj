@@ -38,7 +38,7 @@
 (s/def :chimera.operation/add-attribute
   (s/fspec :args (s/cat :adapter :chimera/adapter
                         :op #{:chimera.operation/add-attribute}
-                        :payload (s/keys :req [:chimera.migration.operation.add-attribute/attr])
+                        :payload (s/keys :req [:chimera.operation.add-attribute/attr])
                         :context :chimera.operation/context)
            :ret :chimera.operation/context))
 

@@ -102,7 +102,7 @@
       (m/attr :chimera.migration.operation/type :one :keyword
         "The type of the operation"))
 
-    (m/type :chimera.migration.operation/AddAttribute []
+    (m/type :chimera.operation/AddAttribute []
       "Encoding of the data required for an AddAttribute operation"
-      (m/attr :chimera.migration.operation.add-attribute/attr :one :component :chimera/Attribute
+      (m/attr :chimera.operation.add-attribute/attr :one :component :chimera/Attribute
         "Attribute entity to be added to the model"))))
