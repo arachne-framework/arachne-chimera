@@ -23,7 +23,7 @@
     (:chimera.migration.operation/type operation))
   :default ::unknown-operation)
 
-(deferror ::unknown-operation
+(deferror ::unknown-schema-operation
   :message "Unknown schema migration operation type `:op-type` in migration `:mig-name`"
   :explanation "Chimera was trying to build a domain model out of a set of migrations.
 
@@ -142,13 +142,49 @@
     (loom-alg/topsort)
     (reverse)))
 
+(deferror ::unknown-canonical-operation
+  :message "Unknown schema migration operation type `:op-type` in migration `:mig-name`"
+  :explanation "Chimera was trying to build the MD5 signature of a Chimera migration, to ensure its integrity and that it hasn't changed since the first time it was applied to a database..
+
+  However, in a migration named `:mig-name`, there was an operation with an operation type `:op-type`. Chimera does not know how to obtain a 'canonical' view of this operation type to obtain a stable MD5 signature."
+  :suggestions ["Ensure that the type name `:op-type` is correct with no typos."
+                "If you are a module author and need to define a new operation type, extend the `arachne.chimera.migration/canonical-operation` multimethod with an implementation `:op-type`."]
+  :ex-data-docs {:op-type "The unknown operation type"
+                 :operation "The entity map for the unknown operation"
+                 :mig-name "The migration name"
+                 :cfg "The current configuration"})
+
+(defmulti canonical-operation
+  "Return the stable, official view of a migration operation, dispatching
+   based on the migration operation type."
+  (fn [cfg migration operation]
+    (:chimera.migration.operation/type operation))
+  :default ::unknown-operation)
+
+(defmethod canonical-operation ::unknown-operation
+  [cfg migration operation]
+  (error ::unknown-canonical-operation
+    {:op-type (:chimera.migration.operation/type operation)
+     :cfg cfg
+     :mig-name (:chimera.migration/name migration)
+     :operation operation}))
+
+(defmethod canonical-operation :chimera.operation/add-attribute
+  [cfg migration operation]
+  operation)
+
 (defn canonical-migration
   "Return the stable, offical view of a migration, as passed to the migrate operation
   and as used to calculate the migration's signature."
   [cfg migration-eid]
   (let [m (cfg/pull cfg '[:chimera.migration/name
                           :chimera.migration/operation
-                          {:chimera.migration/parents [:chimera.migration/name]}] migration-eid)]
+                          {:chimera.migration/parents [:chimera.migration/name]}] migration-eid)
+        m (w/prewalk (fn [form]
+                       (if (:chimera.migration.operation/type form)
+                         (canonical-operation cfg m form)
+                         form))
+            m)]
     (w/prewalk (fn [form]
                  (if (map? form)
                    (dissoc form :db/id)

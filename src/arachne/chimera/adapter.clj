@@ -345,15 +345,6 @@
           :adapter-aid (:arachne/id adapter)}))
      result)))
 
-(defn- canonical-operations
-  "Given a canonical migration entity map, return a sequence of the migration
-   operations"
-  [migration]
-  (map #(dissoc % :chimera.migration.operation/next)
-    (take-while identity
-      (iterate :chimera.migration.operation/next
-        (:chimera.migration/operation migration)))))
-
 (defn ensure-migrations
   "Ensure that all the adapter's migrations have been applied, applying any
    that have not.
@@ -368,5 +359,8 @@
         (operate adapter :chimera.operation/migrate
           {:signature (vh/md5-str migration)
            :name (:chimera.migration/name migration)
-           :operations (canonical-operations migration)}
+           :operations (->> (:chimera.migration/operation migration)
+                         (iterate :chimera.migration.operation/next)
+                         (take-while identity)
+                         (map #(dissoc % :chimera.migration.operation/next)))}
           true)))))
