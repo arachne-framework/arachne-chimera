@@ -1,5 +1,5 @@
 (ns arachne.chimera.specs
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [arachne.core.util :as u]))
 
 (s/def :chimera/adapter (u/lazy-satisfies? arachne.chimera.adapter/Adapter))

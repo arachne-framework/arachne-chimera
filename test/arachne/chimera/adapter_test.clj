@@ -1,8 +1,8 @@
 (ns arachne.chimera.adapter-test
   "These tests form the reference implementation for any Adapter."
   (:require [clojure.test :refer :all]
-            [clojure.spec :as s]
-            [clojure.spec.test :as st]
+            [clojure.spec.alpha :as s]
+            [clojure.spec.test.alpha :as st]
             [arachne.core :as core]
             [arachne.core.runtime :as rt]
             [arachne.core.config :as cfg]

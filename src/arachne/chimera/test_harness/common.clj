@@ -1,7 +1,7 @@
 (ns arachne.chimera.test-harness.common
   (:require [arachne.core.dsl :as a]
             [arachne.chimera.dsl :as ch]
-            [clojure.spec :as s]))
+            [clojure.spec.alpha :as s]))
 
 (s/def :test.operation/foo
   (s/fspec :args (s/cat :adapter :chimera/adapter

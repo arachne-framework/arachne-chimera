@@ -5,7 +5,7 @@
             [arachne.chimera :as chimera]
             [arachne.chimera.adapter :as adapter]
             [arachne.error :as err :refer [deferror error]]
-            [clojure.spec :as s]
+            [clojure.spec.alpha :as s]
             [clojure.set :as set]
             [arachne.chimera.operation :as cho]))
 

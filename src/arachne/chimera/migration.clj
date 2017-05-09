@@ -1,5 +1,5 @@
 (ns arachne.chimera.migration
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [clojure.set :as set]
             [arachne.error :as e :refer [deferror error]]
             [arachne.core :as core]

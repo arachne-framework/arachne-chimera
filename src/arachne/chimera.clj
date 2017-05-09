@@ -1,5 +1,5 @@
 (ns arachne.chimera
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [clojure.walk :as w]
             [arachne.error :as e :refer [error deferror]]
             [arachne.core.util :as util]

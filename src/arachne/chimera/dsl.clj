@@ -1,5 +1,5 @@
 (ns arachne.chimera.dsl
-  (:require [clojure.spec :as s]
+  (:require [clojure.spec.alpha :as s]
             [arachne.chimera.specs :as cs]
             [arachne.error :as e :refer [deferror error]]
             [arachne.core.config :as cfg]

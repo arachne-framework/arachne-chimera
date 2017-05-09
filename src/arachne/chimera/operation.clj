@@ -3,7 +3,7 @@
   (:require [arachne.core.config :as cfg]
             [arachne.chimera.specs]
             [arachne.error :refer [error deferror]]
-            [clojure.spec :as s]))
+            [clojure.spec.alpha :as s]))
 
 (defn- context-matches-return
   "Spec function to assert that, when a function is passed a :context, its
