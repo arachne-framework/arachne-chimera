@@ -24,7 +24,7 @@
             [this operation-type payload batch-context]
     "Perform a Chimera operation on this adapter."))
 
-(defrecord ChimeraAdapter [dispatch supported-operations attributes]
+(defrecord ChimeraAdapter [dispatch supported-operations attributes types]
   c/Lifecycle
   (start [this]
     (let [started (if-let [start (:chimera.adapter/start this)]
@@ -168,9 +168,12 @@
 (defn ctor
   "Constructor function for all adapter components"
   [cfg eid]
-  (->ChimeraAdapter (build-dispatch-fn cfg eid)
-                    (supported-operations cfg eid)
-                    (attributes cfg eid)))
+  (let [attrs (attributes cfg eid)
+        types (group-by :chimera.attribute/domain (vals attrs))]
+    (->ChimeraAdapter (build-dispatch-fn cfg eid)
+      (supported-operations cfg eid)
+      attrs
+      types)))
 
 (defn add-adapter-constructors
   "Ensure that every Adapter entity in the config has the correct constructor"
@@ -286,15 +289,24 @@
 (defn key-for-type
   "Given an adapter and a type name, return the key attribute for that type."
   [adapter type]
-  (cfg/q (:arachne/config adapter)
-    '[:find ?attr .
-      :in $ ?adapter ?type
-      :where
-      [?adapter :chimera.adapter/model ?dme]
-      [?dme :chimera.attribute/domain ?type]
-      [?dme :chimera.attribute/key true]
-      [?dme :chimera.attribute/name ?attr]]
-    (:db/id adapter) type))
+  (->> adapter
+    :types
+    type
+    (filter :chimera.attribute/key)
+    (first)
+    :chimera.attribute/name))
+
+(defn attrs-for-type
+  "Given an adapter and a type name, return the attributes for that type (as
+   entity maps)"
+  [adapter type]
+  (->> adapter :types type))
+
+(defn attrs-for-entity
+  "Given an adapter and a lookup, return the attributes for entities of that type"
+  [adapter {attribute :attribute}]
+  (let [type (->> adapter :attributes attribute :chimera.attribute/domain)]
+    (attrs-for-type adapter type)))
 
 (defn- conform-operation
   [& args]

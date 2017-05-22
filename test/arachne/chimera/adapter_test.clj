@@ -86,3 +86,20 @@
 
     (let [stopped-rt (component/stop rt)]
       (is (= 43 (:state (rt/lookup stopped-rt [:arachne/id :test/adapter])))))))
+
+(deftest adapter-utilities
+  (let [cfg (core/build-config [:org.arachne-framework/arachne-chimera] `(config 0))
+        rt (rt/init cfg [:arachne/id :test/rt])
+        rt (component/start rt)
+        adapter (rt/lookup rt [:arachne/id :test/adapter])]
+
+    (is (= #{:test.person/id
+             :test.person/name
+             :test.person/dob
+             :test.person/friends}
+          (set (map :chimera.attribute/name (ca/attrs-for-type adapter :test/Person)))
+          (set (map :chimera.attribute/name
+                 (ca/attrs-for-entity adapter
+                   (chimera/lookup :test.person/id (UUID/randomUUID)))))))
+
+    (component/stop rt)))
